@@ -1,10 +1,10 @@
 const CACHE_NAME = 'momentum-cache-v1';
 const urlsToCache = [
-  '/main/index.html',
-  '/main/style.css',
-  '/main/script.js',
-  '/images/logo2.png',
-  '/images/favicon.ico'
+  '/index.html',
+  '/style.css',
+  '/script.js',
+  'images/logo2.png',
+  'images/favicon.ico'
 ];
 
 self.addEventListener('install', event => {
