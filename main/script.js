@@ -27,6 +27,18 @@ function saveState() {
     localStorage.setItem('darkMode', darkMode);
 }
 
+function toggleSidebar() {
+    const sidebar = document.getElementById('mobile-sidebar');
+    const isOpen = !sidebar.classList.contains('-translate-x-full');
+
+    if (isOpen) {
+        sidebar.classList.add('-translate-x-full');
+    } else {
+        sidebar.classList.remove('-translate-x-full');
+    }
+}
+
+
 // Show/Hide loading overlay
 function showLoading() {
     document.getElementById('loading-overlay').classList.remove('hidden');
@@ -448,23 +460,56 @@ function sortSkills(skills, sort) {
 
 function renderTopBar(filter, type, sort, searchQuery) {
     const currentView = localStorage.getItem('skillView') || 'grid';
-    const oppositeView = currentView === 'grid' ? 'list' : 'grid';
     const icon = currentView === 'grid' ? '📃 List' : '🔲 Grid';
 
     return `
-        <div class="mb-6 flex gap-2 flex-wrap items-center">
-            <input id="search-skills" type="text" placeholder="Search skills..." value="${searchQuery}" 
-                class="flex-1 p-2 rounded-lg border dark:bg-gray-700 dark:text-white dark:border-gray-600" 
-                aria-label="Search skills">
-            ${renderFilterDropdown('category', 'Category', [...new Set(skills.map(s => s.category || 'Uncategorized'))], filter, type, sort, searchQuery)}
-            ${renderFilterDropdown('tag', 'Tag', [...new Set(skills.flatMap(s => s.tags || []))], filter, type, sort, searchQuery)}
-            <button onclick="exportData('json')" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700">Export JSON</button>
-            <button onclick="exportData('csv')" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700">Export CSV</button>
-            <button onclick="toggleSkillView()" class="bg-gray-200 dark:bg-gray-800 dark:text-white px-4 py-2 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-700">${icon}</button>
+        <div class="mb-4">
+            <!-- Toggle Button: Only visible on small screens -->
+            <div class="flex justify-end mb-2 md:hidden">
+                <button onclick="toggleTopBar()" class="px-4 py-2 rounded bg-blue-600 text-white">
+                    ☰ Filters
+                </button>
+            </div>
+
+            <!-- Collapsible Top Bar Content -->
+            <div id="topbar-collapse" class="hidden md:flex md:flex-wrap gap-3 items-center transition-all duration-300 ease-in-out">
+                <input
+                    id="search-skills"
+                    type="text"
+                    placeholder="Search skills..."
+                    value="${searchQuery}"
+                    class="w-full md:flex-1 p-2 rounded-lg border dark:bg-gray-700 dark:text-white dark:border-gray-600"
+                    aria-label="Search skills"
+                />
+                <div class="flex flex-col md:flex-row gap-3 w-full md:w-auto">
+                    ${renderFilterDropdown(
+        'category',
+        'Category',
+        [...new Set(skills.map(s => s.category || 'Uncategorized'))],
+        filter, type, sort, searchQuery
+    )}
+                    ${renderFilterDropdown(
+        'tag',
+        'Tag',
+        [...new Set(skills.flatMap(s => s.tags || []))],
+        filter, type, sort, searchQuery
+    )}
+                </div>
+                <div class="flex flex-wrap gap-2 w-full md:w-auto">
+                    <button onclick="exportData('json')" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 w-full md:w-auto">
+                        Export JSON
+                    </button>
+                    <button onclick="exportData('csv')" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 w-full md:w-auto">
+                        Export CSV
+                    </button>
+                    <button onclick="toggleSkillView()" class="bg-gray-200 dark:bg-gray-800 dark:text-white px-4 py-2 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-700 w-full md:w-auto">
+                        ${icon}
+                    </button>
+                </div>
+            </div>
         </div>
     `;
 }
-
 
 function toggleSkillView() {
     const currentView = localStorage.getItem('skillView') || 'grid';
@@ -518,10 +563,11 @@ function renderSkillCards(skillsArray) {
 function renderSkillCardGrid(skill) {
     const progress = calculateProgress(skill);
     return `
-        <div id="skill-card-${skill.id}" class="skill-card bg-white p-4 rounded-lg shadow-md transition-transform transform hover:scale-105">
-            <h2 class="text-xl font-semibold dark:text-white">${skill.name} (${skill.category || 'Uncategorized'})</h2>
-            <p class="text-sm text-gray-600 dark:text-gray-400">${skill.tags?.join(', ') || ''}</p>
-            <div class="relative w-24 h-24 mx-auto my-4">
+        <div id="skill-card-${skill.id}" class="skill-card bg-white dark:bg-gray-800 p-4 rounded-lg shadow-md transition-transform transform hover:scale-105 w-full">
+            <h2 class="text-lg sm:text-xl font-semibold dark:text-white break-words">${skill.name} (${skill.category || 'Uncategorized'})</h2>
+            <p class="text-sm text-gray-600 dark:text-gray-400 break-words">${skill.tags?.join(', ') || ''}</p>
+
+            <div class="relative w-20 h-20 sm:w-24 sm:h-24 mx-auto my-4">
                 <svg class="w-full h-full" viewBox="0 0 36 36">
                     <circle cx="18" cy="18" r="15.9155" fill="none" stroke="#e5e7eb" stroke-width="2" />
                     <circle class="progress-ring" cx="18" cy="18" r="15.9155" fill="none" stroke="#3b82f6" stroke-width="2"
@@ -529,10 +575,13 @@ function renderSkillCardGrid(skill) {
                     <text x="20" y="20" text-anchor="middle" fill="currentColor" class="text-sm dark:text-white">${progress}%</text>
                 </svg>
             </div>
-            <p class="text-gray-600">${skill.milestones.filter(m => m.completed).length}/${skill.milestones.length} Milestones</p>
-            <p class="text-gray-600">${getStatusEmoji(progress)}</p>
-            <div class="mt-2">${getBadges(skill).map(b => `<span class="badge">${b}</span>`).join(' ')}</div>
-            <div class="mt-4 flex gap-2 flex-wrap">
+
+            <p class="text-sm text-gray-600 dark:text-gray-300">${skill.milestones.filter(m => m.completed).length}/${skill.milestones.length} Milestones</p>
+            <p class="text-lg">${getStatusEmoji(progress)}</p>
+
+            <div class="mt-2 flex flex-wrap gap-1">${getBadges(skill).map(b => `<span class="badge">${b}</span>`).join(' ')}</div>
+
+            <div class="mt-4 flex flex-wrap gap-2 justify-center sm:justify-start">
                 <button onclick="viewSkill('${skill.id}')" class="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700">View</button>
                 <button onclick="editSkill('${skill.id}')" class="bg-yellow-600 text-white px-3 py-1 rounded-lg">Edit</button>
                 <button onclick="shareSkillCard('${skill.id}')" class="bg-indigo-600 text-white px-3 py-1 rounded-lg hover:bg-indigo-700">Share</button>
@@ -542,18 +591,20 @@ function renderSkillCardGrid(skill) {
     `;
 }
 
+
 function renderSkillCardList(skill) {
     const progress = calculateProgress(skill);
     return `
-        <div id="skill-card-${skill.id}" class="flex flex-col md:flex-row justify-between items-start md:items-center bg-white p-4 rounded-lg shadow-sm border dark:bg-gray-800 dark:text-white">
-            <div>
-                <h3 class="text-lg font-semibold">${skill.name} (${skill.category || 'Uncategorized'})</h3>
-                <p class="text-sm text-gray-500 dark:text-gray-400">${skill.tags?.join(', ') || ''}</p>
+        <div id="skill-card-${skill.id}" class="flex flex-col sm:flex-row justify-between gap-4 bg-white p-4 rounded-lg shadow-sm border dark:bg-gray-800 dark:text-white w-full">
+            <div class="flex-1 min-w-0">
+                <h3 class="text-lg sm:text-xl font-semibold break-words">${skill.name} (${skill.category || 'Uncategorized'})</h3>
+                <p class="text-sm text-gray-500 dark:text-gray-400 break-words">${skill.tags?.join(', ') || ''}</p>
                 <p class="text-sm mt-1">${progress}% complete — ${skill.milestones.filter(m => m.completed).length}/${skill.milestones.length} milestones</p>
                 <p class="text-xl">${getStatusEmoji(progress)}</p>
-                <div class="mt-2">${getBadges(skill).map(b => `<span class="badge">${b}</span>`).join(' ')}</div>
+                <div class="mt-2 flex flex-wrap gap-1">${getBadges(skill).map(b => `<span class="badge">${b}</span>`).join(' ')}</div>
             </div>
-            <div class="flex gap-2 mt-4 md:mt-0">
+
+            <div class="flex flex-wrap gap-2 justify-center sm:justify-end sm:items-center">
                 <button onclick="viewSkill('${skill.id}')" class="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700">View</button>
                 <button onclick="editSkill('${skill.id}')" class="bg-yellow-600 text-white px-3 py-1 rounded-lg">Edit</button>
                 <button onclick="shareSkillCard('${skill.id}')" class="bg-indigo-600 text-white px-3 py-1 rounded-lg hover:bg-indigo-700">Share</button>
@@ -562,6 +613,7 @@ function renderSkillCardList(skill) {
         </div>
     `;
 }
+
 
 
 function attachSearchInput(filter, type, sort) {
@@ -1248,14 +1300,14 @@ window.onload = () => {
 };
 
 if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/service-worker.js')
-      .then(reg => console.log('[PWA] Service Worker registered', reg))
-      .catch(err => console.error('[PWA] Registration failed', err));
-  });
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/service-worker.js')
+            .then(reg => console.log('[PWA] Service Worker registered', reg))
+            .catch(err => console.error('[PWA] Registration failed', err));
+    });
 }
 
 if (window.matchMedia('(display-mode: standalone)').matches) {
-  document.body.classList.add('standalone');
+    document.body.classList.add('standalone');
 }
 

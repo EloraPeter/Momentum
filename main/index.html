@@ -18,28 +18,60 @@
 
 <body class="bg-gray-100 dark:bg-gray-900 transition-colors duration-300">
     <header class="bg-white dark:bg-gray-800 shadow-md p-4 flex justify-between items-center">
-        <h1 class="flex items-center text-2xl font-bold dark:text-white"><img src="/images/logo2.png" alt="">Momentum
+        <h1 class="flex items-center text-xl sm:text-2xl font-bold dark:text-white">
+            <img src="/images/logo2.png" alt="" class="w-8 h-8 mr-2" />
+            Momentum
         </h1>
-        <div class="flex items-center gap-4">
+
+        <!-- Hamburger for mobile -->
+        <button class="sm:hidden text-gray-600 dark:text-white text-2xl" onclick="toggleSidebar()"
+            aria-label="Toggle menu">
+            ☰
+        </button>
+
+        <!-- Desktop Nav -->
+        <div class="hidden sm:flex items-center gap-4">
             <select id="sort-skills"
                 onchange="renderDashboard(null, 'category', this.value, document.getElementById('search-skills').value)"
-                class="p-2 rounded-lg border dark:bg-gray-700 dark:text-white dark:border-gray-600"
-                aria-label="Sort skills">
+                class="p-2 rounded-lg border dark:bg-gray-700 dark:text-white dark:border-gray-600">
                 <option value="alphabetical">A-Z</option>
                 <option value="progress">Progress</option>
                 <option value="date">Date Added</option>
             </select>
-            <button onclick="openBadgeGallery()" class="text-gray-600 dark:text-gray-300 hover:text-blue-600">
-                Badges
-            </button>
-            <button onclick="openFeedback()" class="text-gray-600 dark:text-gray-300 hover:text-blue-600"
-                aria-label="Open feedback modal">Feedback</button>
-            <button onclick="openHelp()" class="text-gray-600 dark:text-gray-300 hover:text-blue-600"
-                aria-label="Open help modal">Help</button>
+            <button onclick="openBadgeGallery()"
+                class="text-gray-600 dark:text-gray-300 hover:text-blue-600">Badges</button>
+            <button onclick="openFeedback()"
+                class="text-gray-600 dark:text-gray-300 hover:text-blue-600">Feedback</button>
+            <button onclick="openHelp()" class="text-gray-600 dark:text-gray-300 hover:text-blue-600">Help</button>
             <button id="dark-mode-toggle" class="fas fa-moon text-gray-600 dark:text-gray-300"
                 onclick="toggleDarkMode()" aria-label="Toggle dark mode"></button>
         </div>
     </header>
+
+    <!-- Mobile Sidebar Overlay -->
+    <div id="mobile-sidebar"
+        class="fixed top-0 left-0 w-full h-full bg-white/30 dark:bg-gray-900/30 backdrop-blur-md z-50 transform -translate-x-full transition-transform duration-300 ease-in-out sm:hidden">
+        <div
+            class="p-6 flex flex-col gap-4 h-full text-gray-800 dark:text-white bg-white/80 dark:bg-gray-800/80 rounded-r-xl shadow-lg">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-2xl font-bold">Menu</h2>
+                <button onclick="toggleSidebar()" class="text-3xl leading-none">&times;</button>
+            </div>
+            <select id="sort-skills-mobile"
+                onchange="renderDashboard(null, 'category', this.value, document.getElementById('search-skills').value); toggleSidebar();"
+                class="p-2 rounded-lg border dark:bg-gray-700 dark:text-white dark:border-gray-600">
+                <option value="alphabetical">A-Z</option>
+                <option value="progress">Progress</option>
+                <option value="date">Date Added</option>
+            </select>
+            <button onclick="openBadgeGallery(); toggleSidebar()">Badges</button>
+            <button onclick="openFeedback(); toggleSidebar()">Feedback</button>
+            <button onclick="openHelp(); toggleSidebar()">Help</button>
+            <button onclick="toggleDarkMode(); toggleSidebar()">Toggle Dark Mode</button>
+        </div>
+    </div>
+
+
 
     <main id="main-content" class="container mx-auto p-6">
         <div class="flex items-center justify-center min-h-[50vh]">
@@ -232,6 +264,15 @@
 
 
 
+    <script>
+        let isTopBarOpen = false;
+
+        function toggleTopBar() {
+            const container = document.getElementById('topbar-collapse');
+            isTopBarOpen = !isTopBarOpen;
+            container.classList.toggle('hidden', !isTopBarOpen);
+        }
+    </script>
     <script defer src="https://cdn.jsdelivr.net/npm/dayjs@1.11.10/dayjs.min.js"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/date-fns@2.30.0/dist/date-fns.min.js"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/date-fns@2.30.0/dist/locale/en-US.min.js"></script>

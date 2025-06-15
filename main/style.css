@@ -21,7 +21,7 @@ body {
     border-color: #4b5563;
 }
 
-h1 img{
+h1 img {
     width: 30px;
     border-radius: 50%;
 }
@@ -109,7 +109,10 @@ h1 img{
 }
 
 /* Modals */
-#loading-overlay, #add-skill-modal, #feedback-modal, #help-modal {
+#loading-overlay,
+#add-skill-modal,
+#feedback-modal,
+#help-modal {
     z-index: 50;
 }
 
@@ -126,21 +129,23 @@ h1 img{
     display: grid;
 }
 
-@media (min-width: 768px) {
-    .md\:grid-cols-3 {
-        grid-template-columns: repeat(3, minmax(0, 1fr));
-    }
-}
-
-input{
+input {
     text-transform: capitalize;
 }
 
 /* Input and button focus states */
-input:focus, select:focus, button:focus {
+input:focus,
+select:focus,
+button:focus {
     outline: none;
     ring: 2px solid #3b82f6;
 }
+
+/* Optional: prevent body scroll when sidebar is open */
+body.sidebar-open {
+  overflow: hidden;
+}
+
 
 /* Custom Tailwind overrides */
 .container {
@@ -152,24 +157,78 @@ input:focus, select:focus, button:focus {
 }
 
 @keyframes badge-pop {
-  0% { transform: scale(0.8); opacity: 0.2; }
-  100% { transform: scale(1); opacity: 1; }
+    0% {
+        transform: scale(0.8);
+        opacity: 0.2;
+    }
+
+    100% {
+        transform: scale(1);
+        opacity: 1;
+    }
 }
+
 .animate-badge-pop {
-  animation: badge-pop 0.3s ease-out;
+    animation: badge-pop 0.3s ease-out;
 }
 
 @keyframes toast-enter {
-  from { opacity: 0; transform: translateY(20px); }
-  to { opacity: 1; transform: translateY(0); }
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
+
 @keyframes toast-leave {
-  from { opacity: 1; transform: translateY(0); }
-  to { opacity: 0; transform: translateY(20px); }
+    from {
+        opacity: 1;
+        transform: translateY(0);
+    }
+
+    to {
+        opacity: 0;
+        transform: translateY(20px);
+    }
 }
+
 .animate-toast-enter {
-  animation: toast-enter 0.3s ease-out forwards;
+    animation: toast-enter 0.3s ease-out forwards;
 }
+
 .animate-toast-leave {
-  animation: toast-leave 0.3s ease-in forwards;
+    animation: toast-leave 0.3s ease-in forwards;
+}
+
+@media (min-width: 768px) {
+    .md\:grid-cols-3 {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 640px) {
+    header h1 {
+        font-size: 1.25rem;
+    }
+
+    #nav-links {
+        width: 100%;
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    #nav-links select,
+    #nav-links button {
+        width: 100%;
+        text-align: left;
+    }
+
+    h1 img {
+        width: 28px;
+        margin-right: 8px;
+    }
 }
