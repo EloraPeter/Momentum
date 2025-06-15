@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Momentum</title>
+    <link rel="shortcut icon" href="/images/favicon.ico" type="image/x-icon">
+    <link rel="stylesheet" href="style.css">
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css">
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#2563EB">
+    <link rel="icon" href="/images/favicon.ico" type="image/x-icon">
+
+
+</head>
+
+<body class="bg-gray-100 dark:bg-gray-900 transition-colors duration-300">
+    <header class="bg-white dark:bg-gray-800 shadow-md p-4 flex justify-between items-center">
+        <h1 class="flex items-center text-2xl font-bold dark:text-white"><img src="/images/logo2.png" alt="">Momentum
+        </h1>
+        <div class="flex items-center gap-4">
+            <select id="sort-skills"
+                onchange="renderDashboard(null, 'category', this.value, document.getElementById('search-skills').value)"
+                class="p-2 rounded-lg border dark:bg-gray-700 dark:text-white dark:border-gray-600"
+                aria-label="Sort skills">
+                <option value="alphabetical">A-Z</option>
+                <option value="progress">Progress</option>
+                <option value="date">Date Added</option>
+            </select>
+            <button onclick="openBadgeGallery()" class="text-gray-600 dark:text-gray-300 hover:text-blue-600">
+                Badges
+            </button>
+            <button onclick="openFeedback()" class="text-gray-600 dark:text-gray-300 hover:text-blue-600"
+                aria-label="Open feedback modal">Feedback</button>
+            <button onclick="openHelp()" class="text-gray-600 dark:text-gray-300 hover:text-blue-600"
+                aria-label="Open help modal">Help</button>
+            <button id="dark-mode-toggle" class="fas fa-moon text-gray-600 dark:text-gray-300"
+                onclick="toggleDarkMode()" aria-label="Toggle dark mode"></button>
+        </div>
+    </header>
+
+    <main id="main-content" class="container mx-auto p-6">
+        <div class="flex items-center justify-center min-h-[50vh]">
+            <div class="bg-white dark:bg-gray-700 p-6 rounded-lg shadow-lg text-center">
+                <h2 class="text-xl font-semibold dark:text-white mb-4">No Skills Yet</h2>
+                <p class="text-gray-600 dark:text-gray-300 mb-4">Start your journey by adding a new skill!</p>
+                <button onclick="openAddSkillModal()"
+                    class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
+                    aria-label="Create new skill">Create Skill</button>
+            </div>
+        </div>
+    </main>
+
+    <button id="fab"
+        class="fixed bottom-6 right-6 bg-blue-600 text-white w-12 h-12 rounded-full shadow-lg hover:bg-blue-700 flex items-center justify-center text-2xl"
+        aria-label="Add new skill">
+        +
+    </button>
+
+    <div id="loading-overlay" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden">
+        <div class="animate-spin h-12 w-12 border-4 border-blue-600 border-t-transparent rounded-full"></div>
+    </div>
+
+    <div id="add-skill-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden">
+        <div class="bg-white dark:bg-gray-800 p-6 rounded-lg w-full max-w-md">
+            <h2 class="text-xl font-semibold dark:text-white mb-4">Add New Skill</h2>
+            <input id="new-skill" type="text" placeholder="Skill name"
+                class="w-full p-2 mb-4 rounded-lg border dark:bg-gray-700 dark:text-white dark:border-gray-600"
+                aria-label="Skill name">
+            <div>
+                <input list="categories" id="skill-category"
+                    class="w-full p-2 mb-4 rounded-lg border dark:bg-gray-700 dark:text-white dark:border-gray-600"
+                    placeholder="Type Category..." />
+                <datalist id="categories">
+                    <option value="Select Category">Select Category</option>
+                    <option value="Design">Design</option>
+                    <option value="Speaking">Speaking</option>
+                </datalist>
+            </div>
+            <input id="skill-tags" type="text" placeholder="Tags (comma-separated)"
+                class="w-full p-2 mb-4 rounded-lg border dark:bg-gray-700 dark:text-white dark:border-gray-600"
+                aria-label="Skill tags">
+            <div class="flex gap-2 justify-end">
+                <button onclick="closeAddSkillModal()"
+                    class="px-4 py-2 bg-gray-300 dark:bg-gray-600 rounded-lg hover:bg-gray-400 dark:hover:bg-gray-500"
+                    aria-label="Cancel">Cancel</button>
+                <button onclick="addSkill()" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                    aria-label="Add skill">Add</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Onboarding Wizard Modal -->
+    <div id="onboarding-modal"
+        class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center">
+        <div class="bg-white dark:bg-gray-800 p-6 rounded-lg w-11/12 max-w-md space-y-4 text-center">
+            <h2 id="onboarding-step-title" class="text-2xl font-bold dark:text-white">Welcome to Momentum!</h2>
+            <p id="onboarding-step-desc" class="text-gray-600 dark:text-gray-300">Let’s set up your first skill.</p>
+
+            <!-- Step Content -->
+            <div id="onboarding-step-1" class="step-content">
+                <input id="onboarding-skill-name" type="text" placeholder="e.g. JavaScript"
+                    class="w-full p-2 rounded border dark:bg-gray-700 dark:text-white dark:border-gray-600" />
+            </div>
+            <!-- Step 2 -->
+            <div id="onboarding-step-2" class="step-content hidden">
+                <input list="onboarding-categories" id="onboarding-skill-category" type="text"
+                    placeholder="Category (e.g. Frontend)"
+                    class="w-full p-2 rounded border mb-3 dark:bg-gray-700 dark:text-white dark:border-gray-600" />
+                <datalist id="onboarding-categories">
+                    <option value="Frontend"></option>
+                    <option value="Backend"></option>
+                    <option value="Design"></option>
+                    <option value="Productivity"></option>
+                    <option value="Writing"></option>
+                </datalist>
+                <input id="onboarding-skill-tags" type="text" placeholder="Tags (e.g. JavaScript, DOM, async)"
+                    class="w-full p-2 rounded border dark:bg-gray-700 dark:text-white dark:border-gray-600" />
+            </div>
+            <!-- Step 3 -->
+            <div id="onboarding-step-3" class="step-content hidden">
+                <input id="onboarding-milestone-title" type="text" placeholder="Milestone title (e.g. Learn DOM)"
+                    class="w-full p-2 rounded border mb-3 dark:bg-gray-700 dark:text-white dark:border-gray-600" />
+                <input id="onboarding-milestone-weight" type="number" min="1" max="10" placeholder="Weight (1-10)"
+                    class="w-full p-2 rounded border mb-3 dark:bg-gray-700 dark:text-white dark:border-gray-600" />
+                <input id="onboarding-milestone-deadline" type="date"
+                    class="w-full p-2 rounded border dark:bg-gray-700 dark:text-white dark:border-gray-600" />
+            </div>
+
+
+            <div class="flex justify-between mt-4">
+                <button onclick="skipOnboarding()" class="text-sm text-gray-500 hover:underline">Skip</button>
+                <div class="flex gap-2">
+                    <button onclick="onboardingPrev()" id="onboarding-back-btn"
+                        class="hidden bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">Back</button>
+                    <button onclick="onboardingNext()"
+                        class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">Next</button>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+
+    <div id="share-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center z-50">
+        <div class="bg-white dark:bg-gray-800 p-6 rounded-lg w-11/12 max-w-sm text-center">
+            <h3 class="text-lg font-bold dark:text-white mb-2">Share Progress</h3>
+            <p id="share-message" class="text-sm text-gray-600 dark:text-gray-300 mb-4"></p>
+            <div class="flex flex-wrap gap-2 justify-center">
+                <button onclick="shareTo('twitter')" class="bg-blue-500 text-white px-4 py-1 rounded">X
+                    (Twitter)</button>
+                <button onclick="shareTo('facebook')" class="bg-blue-700 text-white px-4 py-1 rounded">Facebook</button>
+                <button onclick="shareTo('linkedin')" class="bg-blue-600 text-white px-4 py-1 rounded">LinkedIn</button>
+                <button onclick="copyShareLink()" class="bg-gray-600 text-white px-4 py-1 rounded">Copy Link</button>
+                <button onclick="downloadCardImage()" class="bg-green-600 text-white px-4 py-1 rounded">Download
+                    Card</button>
+            </div>
+            <button onclick="closeShareModal()" class="mt-4 text-sm text-gray-500 hover:underline">Cancel</button>
+        </div>
+    </div>
+
+
+    <div id="edit-skill-modal"
+        class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center z-50">
+        <div class="bg-white dark:bg-gray-800 p-6 rounded-lg w-11/12 max-w-md">
+            <h3 class="text-lg font-bold dark:text-white mb-4">Edit Skill</h3>
+            <input id="edit-skill-name" type="text" placeholder="Skill name" class="w-full mb-2 p-2 border rounded" />
+            <input id="edit-skill-category" type="text" placeholder="Category" class="w-full mb-2 p-2 border rounded" />
+            <input id="edit-skill-tags" type="text" placeholder="Tags (comma separated)"
+                class="w-full mb-4 p-2 border rounded" />
+            <div class="flex justify-end gap-2">
+                <button onclick="closeEditSkillModal()" class="px-4 py-2 bg-gray-600 text-white rounded">Cancel</button>
+                <button onclick="saveEditedSkill()" class="px-4 py-2 bg-blue-600 text-white rounded">Save</button>
+            </div>
+        </div>
+    </div>
+
+
+    <div id="feedback-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden">
+        <div class="bg-white dark:bg-gray-800 p-6 rounded-lg w-full max-w-md">
+            <h2 class="text-xl font-semibold dark:text-white mb-4">Feedback</h2>
+            <textarea id="feedback-text" placeholder="Your feedback..."
+                class="w-full p-2 mb-4 rounded-lg border dark:bg-gray-700 dark:text-white dark:border-gray-600" rows="4"
+                aria-label="Feedback input"></textarea>
+            <div class="flex gap-2 justify-end">
+                <button onclick="submitFeedback()" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                    aria-label="Submit feedback">Submit</button>
+                <button onclick="closeFeedback()"
+                    class="px-4 py-2 bg-gray-300 dark:bg-gray-600 rounded-lg hover:bg-gray-400 dark:hover:bg-gray-500"
+                    aria-label="Close feedback modal">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="help-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden">
+        <div class="bg-white dark:bg-gray-800 p-6 rounded-lg w-full max-w-md">
+            <h2 class="text-xl font-semibold dark:text-white mb-4">How to Use Momentum</h2>
+            <ol class="list-decimal pl-5 text-gray-600 dark:text-gray-300">
+                <li>Add skills using the "+ Add Skill" button.</li>
+                <li>View and update milestones, practice history, and reflections.</li>
+                <li>Track your progress visually with charts and heatmaps.</li>
+                <li>Export your progress as PNG, PDF, JSON, or CSV.</li>
+                <li>Maintain streaks by practicing daily.</li>
+            </ol>
+            <div class="mt-4 flex justify-end">
+                <button onclick="closeHelp()"
+                    class="px-4 py-2 bg-gray-300 dark:bg-gray-600 rounded-lg hover:bg-gray-400 dark:hover:bg-gray-500"
+                    aria-label="Close help modal">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 🎖️ Badge Gallery Modal -->
+    <div id="badge-gallery-modal"
+        class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center z-50">
+        <div class="bg-white dark:bg-gray-800 p-6 rounded-lg w-11/12 max-w-2xl max-h-[90vh] overflow-auto">
+            <h3 class="text-2xl font-bold dark:text-white mb-4">🏅 Badge Gallery</h3>
+            <div id="badge-gallery-content" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <!-- badges will be injected here -->
+            </div>
+            <div class="text-right mt-6">
+                <button onclick="closeBadgeGallery()"
+                    class="bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-700">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast-container" class="fixed bottom-4 right-4 z-50 space-y-2"></div>
+
+
+
+    <script defer src="https://cdn.jsdelivr.net/npm/dayjs@1.11.10/dayjs.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/date-fns@2.30.0/dist/date-fns.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/date-fns@2.30.0/dist/locale/en-US.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.js"></script>
+    <script defer
+        src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+    <script defer src="script.js"></script>
+</body>
+
+</html>
