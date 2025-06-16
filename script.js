@@ -563,7 +563,7 @@ function renderSkillCards(skillsArray) {
 function renderSkillCardGrid(skill) {
     const progress = calculateProgress(skill);
     return `
-        <div id="skill-card-${skill.id}" class="skill-card bg-white dark:bg-gray-800 p-4 rounded-lg shadow-md transition-transform transform hover:scale-105 w-full">
+        <div id="skill-card-${skill.id}" class="skill-card dark:bg-gray-800 p-4 rounded-lg shadow-md transition-transform transform hover:scale-105 w-full">
             <h2 class="text-lg sm:text-xl font-semibold dark:text-white break-words">${skill.name} (${skill.category || 'Uncategorized'})</h2>
             <p class="text-sm text-gray-600 dark:text-gray-400 break-words">${skill.tags?.join(', ') || ''}</p>
 
@@ -1242,7 +1242,18 @@ function viewSkill(skillId) {
 function toggleDarkMode() {
     darkMode = !darkMode;
     document.body.classList.toggle('dark');
-    document.getElementById('dark-mode-toggle').className = `fas ${darkMode ? 'fa-sun' : 'fa-moon'}`;
+   // Update icon class
+    const iconBtn = document.getElementById('dark-mode-toggle');
+    if (iconBtn) {
+        iconBtn.className = `fas ${darkMode ? 'fa-sun' : 'fa-moon'} text-gray-600 dark:text-gray-300`;
+    }
+
+    // Update text button (if you want to show emoji or mode label)
+    const textBtn = document.querySelector('button[onclick*="toggleDarkMode(); toggleSidebar()"]');
+    if (textBtn) {
+        textBtn.innerHTML = darkMode ? '☀️ Toggle Light Mode' : '🌙 Toggle Dark Mode';
+    }
+    
     saveState();
 }
 
