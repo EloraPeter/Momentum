@@ -44,7 +44,7 @@ async function saveState() {
     localStorage.setItem('styledLogs', JSON.stringify(styledLogs));
     localStorage.setItem('styledToSellMode', styledToSellMode);
 
-      if (user && supabase) {
+    if (user && supabase) {
         await supabase.from('user_data').upsert({
             user_id: user.id,
             skills,
@@ -62,7 +62,7 @@ async function saveState() {
 // Supabase auth functions
 async function loginWithEmail(email, password) {
     if (!supabase) return showToast('Supabase not configured');
-    
+
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) {
         showToast('Login failed: ' + error.message);
@@ -76,7 +76,7 @@ async function loginWithEmail(email, password) {
 
 async function loginWithMagicLink(email) {
     if (!supabase) return showToast('Supabase not configured');
-    
+
     const { error } = await supabase.auth.signInWithOtp({ email });
     if (error) {
         showToast('Error sending magic link: ' + error.message);
@@ -96,13 +96,13 @@ async function logout() {
 
 async function syncUserData() {
     if (!user || !supabase) return;
-    
+
     const { data, error } = await supabase
         .from('user_data')
         .select('*')
         .eq('user_id', user.id)
         .single();
-    
+
     if (data) {
         skills = data.skills || skills;
         styledLogs = data.styled_logs || styledLogs;
@@ -113,7 +113,7 @@ async function syncUserData() {
         darkMode = data.dark_mode || darkMode;
         styledToSellMode = data.styled_to_sell_mode || styledToSellMode;
         saveState();
-        
+
         if (user.user_metadata.styled_to_sell_unlocked) {
             styledToSellMode = true;
             localStorage.setItem('styledToSellMode', 'true');
@@ -126,14 +126,14 @@ async function syncUserData() {
 function unlockStyledMode() {
     const codeInput = document.getElementById('styled-mode-code');
     const code = codeInput.value.trim();
-    
+
     if (code === 'SELLSTYLE23') {
         styledToSellMode = true;
         localStorage.setItem('styledToSellMode', 'true');
         document.body.classList.add('styled-mode');
         document.getElementById('styled-mode-modal').classList.add('hidden');
         showToast('Styled to Sell Mode unlocked!');
-        
+
         // Add predefined goals if not already added
         styledGoals.forEach(goal => {
             if (!skills.some(s => s.name === goal.title)) {
@@ -365,6 +365,12 @@ function getBadges(skill) {
     const oneWeekAgo = dayjs().subtract(7, 'day');
     const recentReflections = skill.reflections.filter(r => dayjs(r.date).isAfter(oneWeekAgo)).length;
     if (recentReflections >= 3) badges.push('📝 Reflective Thinker');
+    // Styled to Sell badges
+    const styledGoalsCount = skills.filter(s => s.tags?.includes('StyledToSell')).length;
+    if (styledGoalsCount >= 3) badges.push('🌟 Styled Starter');
+    if (new Set(styledLogs.map(l => l.date)).size >= 5) badges.push('👑 Consistent Queen');
+    if (styledLogs.filter(l => l.post.toLowerCase().includes('sales')).length >= 3) badges.push('🚀 Launch Ready');
+    
     return badges;
 }
 
