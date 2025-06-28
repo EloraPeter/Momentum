@@ -370,7 +370,7 @@ function getBadges(skill) {
     if (styledGoalsCount >= 3) badges.push('🌟 Styled Starter');
     if (new Set(styledLogs.map(l => l.date)).size >= 5) badges.push('👑 Consistent Queen');
     if (styledLogs.filter(l => l.post.toLowerCase().includes('sales')).length >= 3) badges.push('🚀 Launch Ready');
-    
+
     return badges;
 }
 
@@ -378,6 +378,12 @@ function getBadges(skill) {
 function saveUnlockedBadges(badges) {
     const unlockedIds = badges.filter(b => b.unlocked).map(b => b.id);
     localStorage.setItem('unlockedBadges', JSON.stringify(unlockedIds));
+    if (user && supabase) {
+        supabase.from('user_data').upsert({
+            user_id: user.id,
+            unlocked_badges: unlockedIds
+        });
+    }
 }
 
 function getUnlockedBadgeIds() {
@@ -443,6 +449,33 @@ function openBadgeGallery() {
             unlocked: skills.some(s => (s.reflections || []).filter(r => dayjs(r.date).isAfter(dayjs().subtract(7, 'day'))).length >= 3),
             tier: 'Silver',
             progress: Math.max(...skills.map(s => (s.reflections || []).filter(r => dayjs(r.date).isAfter(dayjs().subtract(7, 'day'))).length)) + '/3 reflections'
+        },
+        {
+            id: 'styledStarter',
+            icon: '🌟',
+            name: 'Styled Starter',
+            description: 'Add 3 Styled to Sell goals.',
+            unlocked: skills.filter(s => s.tags?.includes('StyledToSell')).length >= 3,
+            tier: 'Bronze',
+            progress: `${skills.filter(s => s.tags?.includes('StyledToSell')).length}/3 goals`
+        },
+        {
+            id: 'consistentQueen',
+            icon: '👑',
+            name: 'Consistent Queen',
+            description: 'Log posts for 5 different days.',
+            unlocked: new Set(styledLogs.map(l => l.date)).size >= 5,
+            tier: 'Silver',
+            progress: `${new Set(styledLogs.map(l => l.date)).size}/5 days`
+        },
+        {
+            id: 'launchReady',
+            icon: '🚀',
+            name: 'Launch Ready',
+            description: 'Complete 3 sales-focused tasks.',
+            unlocked: styledLogs.filter(l => l.post.toLowerCase().includes('sales')).length >= 3,
+            tier: 'Gold',
+            progress: `${styledLogs.filter(l => l.post.toLowerCase().includes('sales')).length}/3 tasks`
         }
     ];
 
@@ -507,6 +540,21 @@ function checkNewBadges() {
             id: 'reflective3',
             unlocked: skills.some(s => (s.reflections || []).filter(r => dayjs(r.date).isAfter(dayjs().subtract(7, 'day'))).length >= 3),
             label: '📝 Reflective Thinker'
+        },
+        {
+            id: 'styledStarter',
+            unlocked: skills.filter(s => s.tags?.includes('StyledToSell')).length >= 3,
+            label: '🌟 Styled Starter'
+        },
+        {
+            id: 'consistentQueen',
+            unlocked: new Set(styledLogs.map(l => l.date)).size >= 5,
+            label: '👑 Consistent Queen'
+        },
+        {
+            id: 'launchReady',
+            unlocked: styledLogs.filter(l => l.post.toLowerCase().includes('sales')).length >= 3,
+            label: '🚀 Launch Ready'
         }
     ];
 
@@ -558,8 +606,18 @@ function renderDashboard(filter = null, type = 'category', sort = 'alphabetical'
         const sortedSkills = sortSkills(filteredSkills, sort);
 
         main.innerHTML = `
+        ${styledToSellMode ? `
+                <div id="styled-mode-banner" class="bg-pink-500 text-white p-4 mb-4 rounded-lg flex justify-between items-center">
+                    <div>
+                        <strong>✅ Styled to Sell Mode Active</strong>
+                        <p>Let’s build visibility, consistency, and confidence.</p>
+                    </div>
+                    <button onclick="dismissStyledBanner()" class="bg-pink-700 px-3 py-1 rounded">Dismiss</button>
+                </div>
+            ` : ''}
             ${renderTopBar(filter, type, sort, searchQuery)}
             ${renderStats()}
+             ${styledToSellMode ? renderStyledTracker() : ''}
            ${renderSkillCards(sortedSkills)}
 
         `;
@@ -569,6 +627,92 @@ function renderDashboard(filter = null, type = 'category', sort = 'alphabetical'
         hideLoading();
     }, 200);
 }
+
+function dismissStyledBanner() {
+    document.getElementById('styled-mode-banner')?.classList.add('hidden');
+}
+
+function renderStyledTracker() {
+    const styledSkills = skills.filter(s => s.tags?.includes('StyledToSell'));
+    return `
+        <div class="mb-6">
+            <h2 class="text-xl font-semibold dark:text-white">Styled Tracker</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                ${styledSkills.map(skill => `
+                    <div class="bg-white dark:bg-gray-700 p-4 rounded-lg shadow-md">
+                        <h3 class="text-lg font-semibold dark:text-white">${skill.name}</h3>
+                        <p class="text-sm text-gray-600 dark:text-gray-400">${skill.category}</p>
+                        <p class="text-sm mt-2">${calculateProgress(skill)}% complete</p>
+                        <button onclick="viewSkill('${skill.id}')" class="bg-pink-500 text-white px-3 py-1 rounded mt-2 hover:bg-pink-600">View</button>
+                    </div>
+                `).join('')}
+            </div>
+            <div class="mt-4">
+                <h3 class="text-lg font-semibold dark:text-white">Daily Post Log</h3>
+                <div class="flex flex-col gap-2 mt-2">
+                    <input id="post-today" type="text" placeholder="What did I post today?" class="p-2 rounded-lg border dark:bg-gray-900 dark:text-white" aria-label="Post description">
+                    <input id="post-performance" type="text" placeholder="How did it perform?" class="p-2 rounded-lg border dark:bg-gray-900 dark:text-white" aria-label="Post performance">
+                    <textarea id="post-learn" placeholder="What did I learn?" class="p-2 rounded-lg border dark:bg-gray-900 dark:text-white h-24" aria-label="Post learnings"></textarea>
+                    <div class="flex gap-2">
+                        <button onclick="addStyledLog()" class="bg-pink-500 text-white px-4 py-2 rounded-lg hover:bg-pink-600">Add Log</button>
+                        <button onclick="downloadStyledLogs()" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700">Download Logs</button>
+                    </div>
+                </div>
+                <div class="mt-4">
+                    ${styledLogs.slice().reverse().map(log => `
+                        <div class="p-4 border-b dark:border-gray-600">
+                            <p class="text-sm text-gray-500 dark:text-gray-400">${dayjs(log.date).format('MMM D, YYYY')}</p>
+                            <p class="dark:text-white"><strong>Post:</strong> ${log.post}</p>
+                            <p class="dark:text-white"><strong>Performance:</strong> ${log.performance}</p>
+                            <p class="dark:text-white"><strong>Learned:</strong> ${log.learn}</p>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+function addStyledLog() {
+    const post = document.getElementById('post-today').value.trim();
+    const performance = document.getElementById('post-performance').value.trim();
+    const learn = document.getElementById('post-learn').value.trim();
+    
+    if (!post || !performance || !learn) {
+        showToast('Please fill all fields');
+        return;
+    }
+    
+    styledLogs.push({
+        id: uuidv4(),
+        post,
+        performance,
+        learn,
+        date: new Date().toISOString()
+    });
+    
+    document.getElementById('post-today').value = '';
+    document.getElementById('post-performance').value = '';
+    document.getElementById('post-learn').value = '';
+    
+    saveState();
+    renderDashboard();
+}
+
+function downloadStyledLogs() {
+    let csv = 'Date,Post,Performance,Learned\n';
+    styledLogs.forEach(log => {
+        csv += `"${dayjs(log.date).format('YYYY-MM-DD')}","${log.post.replace(/"/g, '""')}","${log.performance.replace(/"/g, '""')}","${log.learn.replace(/"/g, '""')}"\n`;
+    });
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'styled_logs.csv';
+    link.click();
+    URL.revokeObjectURL(url);
+}
+
 function getFilteredSkills(filter, type, searchQuery) {
     let result = [...skills];
 
@@ -642,10 +786,43 @@ function renderTopBar(filter, type, sort, searchQuery) {
                     <button onclick="toggleSkillView()" class="bg-gray-200 dark:bg-gray-800 dark:text-white px-4 py-2 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-700 w-full md:w-auto">
                         ${icon}
                     </button>
+                    ${!styledToSellMode ? `
+                        <button onclick="openStyledModeModal()" class="bg-pink-500 text-white px-4 py-2 rounded-lg hover:bg-pink-600 w-full md:w-auto">
+                            Unlock Styled Mode
+                        </button>
+                    ` : ''}
+                    ${!user ? `
+                        <button onclick="openLoginModal()" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 w-full md:w-auto">
+                            Login
+                        </button>
+                    ` : `
+                        <button onclick="logout()" class="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 w-full md:w-auto">
+                            Logout
+                        </button>
+                    `}
+                    <button onclick="toggleSkillView()" class="bg-gray-200 dark:bg-gray-800 dark:text-white px-4 py-2 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-700 w-full md:w-auto">
+                        ${icon}
+                    </button>
                 </div>
             </div>
         </div>
     `;
+}
+
+function openStyledModeModal() {
+    document.getElementById('styled-mode-modal').classList.remove('hidden');
+}
+
+function closeStyledModeModal() {
+    document.getElementById('styled-mode-modal').classList.add('hidden');
+}
+
+function openLoginModal() {
+    document.getElementById('login-modal').classList.remove('hidden');
+}
+
+function closeLoginModal() {
+    document.getElementById('login-modal').classList.add('hidden');
 }
 
 function toggleSkillView() {
