@@ -21,6 +21,7 @@ let userLevel = parseInt(localStorage.getItem('userLevel')) || 1;
 let streak = parseInt(localStorage.getItem('streak')) || 0;
 let lastActivityDate = localStorage.getItem('lastActivityDate') || null;
 let progressChart = null; // Store chart instance locally
+let styledLogs = JSON.parse(localStorage.getItem('styledLogs')) || [];
 
 // Save to localStorage
 function saveState() {
