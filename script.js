@@ -3,7 +3,7 @@ const { jsPDF } = window.jspdf;
 // Custom UUID v4 generator
 function uuidv4() {
     return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
-        const r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
+        const r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
         return v.toString(16);
     });
 }
@@ -11,137 +11,177 @@ function uuidv4() {
 // Supabase client initialization
 const SUPABASE_URL = 'https://uspfmxwzfjludzgofzdk.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVzcGZteHd6ZmpsdWR6Z29memRrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTExMTIyODEsImV4cCI6MjA2NjY4ODI4MX0.qqZ1bMUq9TTWALecR5I4We-69vJOczId2tEXLFuQLVk';
-const supabase = SUPABASE_URL && SUPABASE_KEY ? createClient(SUPABASE_URL, SUPABASE_KEY) : null;
+const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
+// State variables
 let skills = JSON.parse(localStorage.getItem('skills')) || [];
 let currentSkillId = null;
-let darkMode = localStorage.getItem('darkMode') === 'false';
+let darkMode = localStorage.getItem('darkMode') === 'true';
 let userXP = parseInt(localStorage.getItem('userXP')) || 0;
 let userLevel = parseInt(localStorage.getItem('userLevel')) || 1;
 let streak = parseInt(localStorage.getItem('streak')) || 0;
 let lastActivityDate = localStorage.getItem('lastActivityDate') || null;
-let progressChart = null; // Store chart instance locally
+let progressChart = null;
 let styledLogs = JSON.parse(localStorage.getItem('styledLogs')) || [];
 let styledToSellMode = localStorage.getItem('styledToSellMode') === 'true';
 let user = null;
 
 // Predefined Styled to Sell goals
 const styledGoals = [
-    { title: "Post a content carousel", category: "Visibility" },
-    { title: "Promote my offer", category: "Sales" },
-    { title: "Share a client win", category: "Credibility" },
-    { title: "Post a behind-the-scenes", category: "Connection" }
+    { title: "Post a content carousel", category: "Visibility", tags: ['StyledToSell'] },
+    { title: "Promote my offer", category: "Sales", tags: ['StyledToSell'] },
+    { title: "Share a client win", category: "Credibility", tags: ['StyledToSell'] },
+    { title: "Post a behind-the-scenes", category: "Connection", tags: ['StyledToSell'] }
 ];
 
-// Save to localStorage and optionally sync with Supabase
+// Save state to localStorage and Supabase
 async function saveState() {
-    localStorage.setItem('skills', JSON.stringify(skills));
-    localStorage.setItem('userXP', userXP);
-    localStorage.setItem('userLevel', userLevel);
-    localStorage.setItem('streak', streak);
-    localStorage.setItem('lastActivityDate', lastActivityDate);
-    localStorage.setItem('darkMode', darkMode);
-    localStorage.setItem('styledLogs', JSON.stringify(styledLogs));
-    localStorage.setItem('styledToSellMode', styledToSellMode);
+    try {
+        localStorage.setItem('skills', JSON.stringify(skills));
+        localStorage.setItem('userXP', userXP);
+        localStorage.setItem('userLevel', userLevel);
+        localStorage.setItem('streak', streak);
+        localStorage.setItem('lastActivityDate', lastActivityDate);
+        localStorage.setItem('darkMode', darkMode);
+        localStorage.setItem('styledLogs', JSON.stringify(styledLogs));
+        localStorage.setItem('styledToSellMode', styledToSellMode);
+        localStorage.setItem('unlockedBadges', JSON.stringify(getUnlockedBadgeIds()));
 
-    if (user && supabase) {
-        await supabase.from('user_data').upsert({
-            user_id: user.id,
-            skills,
-            styled_logs: styledLogs,
-            user_xp: userXP,
-            user_level: userLevel,
-            streak,
-            last_activity_date: lastActivityDate,
-            dark_mode: darkMode,
-            styled_to_sell_mode: styledToSellMode
-        });
+        if (user) {
+            const { error } = await supabase.from('user_data').upsert({
+                user_id: user.id,
+                skills,
+                styled_logs: styledLogs,
+                user_xp: userXP,
+                user_level: userLevel,
+                streak,
+                last_activity_date: lastActivityDate,
+                dark_mode: darkMode,
+                styled_to_sell_mode: styledToSellMode,
+                unlocked_badges: getUnlockedBadgeIds()
+            }, { onConflict: 'user_id' });
+            if (error) console.error('Supabase save error:', error);
+        }
+    } catch (error) {
+        console.error('Error saving state:', error);
+        showToast('Error saving data');
     }
 }
 
 // Supabase auth functions
 async function loginWithEmail(email, password) {
-    if (!supabase) return showToast('Supabase not configured');
-
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) {
-        showToast('Login failed: ' + error.message);
-        return;
+    try {
+        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+        if (error) {
+            showToast('Login failed: ' + error.message);
+            return;
+        }
+        user = data.user;
+        await syncUserData();
+        showToast('Logged in successfully');
+        closeLoginModal();
+        renderDashboard();
+    } catch (error) {
+        showToast('Unexpected login error');
+        console.error('Login error:', error);
     }
-    user = data.user;
-    await syncUserData();
-    showToast('Logged in successfully');
-    renderDashboard();
 }
 
 async function loginWithMagicLink(email) {
-    if (!supabase) return showToast('Supabase not configured');
-
-    const { error } = await supabase.auth.signInWithOtp({ email });
-    if (error) {
-        showToast('Error sending magic link: ' + error.message);
-        return;
+    try {
+        const { error } = await supabase.auth.signInWithOtp({ email });
+        if (error) {
+            showToast('Error sending magic link: ' + error.message);
+            return;
+        }
+        showToast('Magic link sent to your email');
+    } catch (error) {
+        showToast('Unexpected error sending magic link');
+        console.error('Magic link error:', error);
     }
-    showToast('Magic link sent to your email');
 }
 
 async function logout() {
-    if (supabase) {
+    try {
         await supabase.auth.signOut();
         user = null;
         showToast('Logged out successfully');
+        renderDashboard();
+    } catch (error) {
+        showToast('Error logging out');
+        console.error('Logout error:', error);
     }
-    renderDashboard();
 }
 
 async function syncUserData() {
-    if (!user || !supabase) return;
-
-    const { data, error } = await supabase
-        .from('user_data')
-        .select('*')
-        .eq('user_id', user.id)
-        .single();
-
-    if (data) {
-        skills = data.skills || skills;
-        styledLogs = data.styled_logs || styledLogs;
-        userXP = data.user_xp || userXP;
-        userLevel = data.user_level || userLevel;
-        streak = data.streak || streak;
-        lastActivityDate = data.last_activity_date || lastActivityDate;
-        darkMode = data.dark_mode || darkMode;
-        styledToSellMode = data.styled_to_sell_mode || styledToSellMode;
-        saveState();
-
-        if (user.user_metadata.styled_to_sell_unlocked) {
-            styledToSellMode = true;
-            localStorage.setItem('styledToSellMode', 'true');
-            document.body.classList.add('styled-mode');
+    if (!user) return;
+    try {
+        const { data, error } = await supabase
+            .from('user_data')
+            .select('*')
+            .eq('user_id', user.id)
+            .single();
+        if (error && error.code !== 'PGRST116') {
+            console.error('Supabase sync error:', error);
+            return;
         }
+        if (data) {
+            skills = data.skills || skills;
+            styledLogs = data.styled_logs || styledLogs;
+            userXP = data.user_xp || userXP;
+            userLevel = data.user_level || userLevel;
+            streak = data.streak || streak;
+            lastActivityDate = data.last_activity_date || lastActivityDate;
+            darkMode = data.dark_mode !== null ? data.dark_mode : darkMode;
+            styledToSellMode = data.styled_to_sell_mode || styledToSellMode;
+            if (data.unlocked_badges) {
+                localStorage.setItem('unlockedBadges', JSON.stringify(data.unlocked_badges));
+            }
+            if (user.user_metadata?.styled_to_sell_unlocked) {
+                styledToSellMode = true;
+                localStorage.setItem('styledToSellMode', 'true');
+                document.body.classList.add('styled-mode');
+            }
+            await saveState();
+        } else {
+            // Create initial user_data row
+            await supabase.from('user_data').insert({
+                user_id: user.id,
+                skills,
+                styled_logs: styledLogs,
+                user_xp: userXP,
+                user_level: userLevel,
+                streak,
+                last_activity_date: lastActivityDate,
+                dark_mode: darkMode,
+                styled_to_sell_mode: styledToSellMode,
+                unlocked_badges: getUnlockedBadgeIds()
+            });
+        }
+    } catch (error) {
+        console.error('Error syncing user data:', error);
+        showToast('Error syncing data');
     }
 }
 
 // Styled to Sell Mode unlock
 function unlockStyledMode() {
     const codeInput = document.getElementById('styled-mode-code');
-    const code = codeInput.value.trim();
-
+    const code = codeInput?.value.trim();
     if (code === 'SELLSTYLE23') {
         styledToSellMode = true;
         localStorage.setItem('styledToSellMode', 'true');
         document.body.classList.add('styled-mode');
-        document.getElementById('styled-mode-modal').classList.add('hidden');
+        closeStyledModeModal();
         showToast('Styled to Sell Mode unlocked!');
 
-        // Add predefined goals if not already added
         styledGoals.forEach(goal => {
             if (!skills.some(s => s.name === goal.title)) {
                 skills.push({
                     id: uuidv4(),
                     name: goal.title,
                     category: goal.category,
-                    tags: ['StyledToSell'],
+                    tags: goal.tags,
                     milestones: [],
                     reflections: [],
                     progressLog: [],
@@ -158,35 +198,31 @@ function unlockStyledMode() {
     }
 }
 
+// Toggle sidebar
 function toggleSidebar() {
     const sidebar = document.getElementById('mobile-sidebar');
-    const isOpen = !sidebar.classList.contains('-translate-x-full');
-
-    if (isOpen) {
-        sidebar.classList.add('-translate-x-full');
-    } else {
-        sidebar.classList.remove('-translate-x-full');
-    }
+    sidebar.classList.toggle('-translate-x-full');
+    document.body.classList.toggle('sidebar-open');
 }
-
 
 // Show/Hide loading overlay
 function showLoading() {
-    document.getElementById('loading-overlay').classList.remove('hidden');
+    document.getElementById('loading-overlay')?.classList.remove('hidden');
 }
 
 function hideLoading() {
     setTimeout(() => {
-        document.getElementById('loading-overlay').classList.add('hidden');
+        document.getElementById('loading-overlay')?.classList.add('hidden');
     }, 300);
 }
 
-function showToast(message) {
+// Toast notifications
+function showToast(message, type = 'success') {
     const container = document.getElementById('toast-container');
+    if (!container) return;
     const toast = document.createElement('div');
-    toast.className = 'bg-green-600 text-white px-4 py-2 rounded shadow-md animate-toast-enter';
+    toast.className = `px-4 py-2 rounded shadow-md animate-toast-enter ${type === 'success' ? 'bg-green-600 text-white' : 'bg-yellow-500 text-white'}`;
     toast.innerText = message;
-
     container.appendChild(toast);
     setTimeout(() => {
         toast.classList.add('animate-toast-leave');
@@ -197,7 +233,10 @@ function showToast(message) {
 function showToastConfirm(message) {
     return new Promise((resolve) => {
         const container = document.getElementById('toast-container');
-
+        if (!container) {
+            resolve(false);
+            return;
+        }
         const toast = document.createElement('div');
         toast.className = 'bg-yellow-500 text-white px-4 py-3 rounded shadow-md animate-toast-enter flex flex-col gap-2';
         toast.innerHTML = `
@@ -207,14 +246,11 @@ function showToastConfirm(message) {
                 <button class="confirm-no bg-red-600 px-3 py-1 rounded">Cancel</button>
             </div>
         `;
-
         container.appendChild(toast);
-
         const removeToast = () => {
             toast.classList.add('animate-toast-leave');
             setTimeout(() => container.removeChild(toast), 500);
         };
-
         toast.querySelector('.confirm-yes').onclick = () => {
             removeToast();
             resolve(true);
@@ -226,41 +262,33 @@ function showToastConfirm(message) {
     });
 }
 
-
+// Onboarding functions
 function skipOnboarding() {
     localStorage.setItem('hasOnboarded', 'true');
-    document.getElementById('onboarding-modal').classList.add('hidden');
+    document.getElementById('onboarding-modal')?.classList.add('hidden');
     renderDashboard();
 }
 
 function onboardingNext() {
     const step = window.onboardingStep || 1;
-
     if (step === 1) {
-        const skillName = document.getElementById('onboarding-skill-name').value.trim();
-        if (!skillName) return showToast('Please enter a skill name.');
+        const skillName = document.getElementById('onboarding-skill-name')?.value.trim();
+        if (!skillName) return showToast('Please enter a skill name.', 'error');
         window.onboardingSkill = { name: skillName };
         onboardingShowStep(2);
-    }
-
-    else if (step === 2) {
-        const category = document.getElementById('onboarding-skill-category').value.trim();
-        const tags = document.getElementById('onboarding-skill-tags').value
+    } else if (step === 2) {
+        const category = document.getElementById('onboarding-skill-category')?.value.trim();
+        const tags = document.getElementById('onboarding-skill-tags')?.value
             .split(',')
             .map(t => t.trim())
             .filter(Boolean);
-
-        window.onboardingSkill.category = category;
+        window.onboardingSkill.category = category || 'Uncategorized';
         window.onboardingSkill.tags = tags;
-
         onboardingShowStep(3);
-    }
-
-    else if (step === 3) {
-        const title = document.getElementById('onboarding-milestone-title').value.trim();
-        const weight = parseInt(document.getElementById('onboarding-milestone-weight').value) || 1;
-        const deadline = document.getElementById('onboarding-milestone-deadline').value;
-
+    } else if (step === 3) {
+        const title = document.getElementById('onboarding-milestone-title')?.value.trim();
+        const weight = parseInt(document.getElementById('onboarding-milestone-weight')?.value) || 1;
+        const deadline = document.getElementById('onboarding-milestone-deadline')?.value;
         const skill = {
             id: uuidv4(),
             name: window.onboardingSkill.name,
@@ -273,28 +301,24 @@ function onboardingNext() {
             weeklyPractice: {},
             createdAt: new Date().toISOString()
         };
-
         if (title) {
             skill.milestones.push({
                 id: uuidv4(),
                 title,
-                weight,
+                weight: Math.max(1, Math.min(10, weight)),
                 deadline,
                 completed: false,
                 createdAt: new Date().toISOString()
             });
         }
-
         skills.push(skill);
         saveState();
         localStorage.setItem('hasOnboarded', 'true');
-        document.getElementById('onboarding-modal').classList.add('hidden');
+        document.getElementById('onboarding-modal')?.classList.add('hidden');
         delete window.onboardingSkill;
         delete window.onboardingStep;
-
         renderDashboard();
     }
-
 }
 
 function onboardingPrev() {
@@ -304,32 +328,24 @@ function onboardingPrev() {
 
 function onboardingShowStep(step) {
     window.onboardingStep = step;
-
-    const totalSteps = 3;
-    for (let i = 1; i <= totalSteps; i++) {
+    for (let i = 1; i <= 3; i++) {
         document.getElementById(`onboarding-step-${i}`)?.classList.add('hidden');
     }
-
     document.getElementById(`onboarding-step-${step}`)?.classList.remove('hidden');
-    document.getElementById('onboarding-step-title').innerText =
-        step === 1 ? 'Welcome to Momentum!' :
-            step === 2 ? 'Categorize Your Skill' :
-                'Add a Milestone (Optional)';
-
-    document.getElementById('onboarding-step-desc').innerText =
-        step === 1 ? 'Let’s set up your first skill.' :
-            step === 2 ? 'Organize it by category and tags.' :
-                'Want to add a starting milestone?';
-
-    document.getElementById('onboarding-back-btn').classList.toggle('hidden', step === 1);
+    const title = document.getElementById('onboarding-step-title');
+    const desc = document.getElementById('onboarding-step-desc');
+    if (title && desc) {
+        title.innerText = step === 1 ? 'Welcome to Momentum!' :
+                         step === 2 ? 'Categorize Your Skill' : 'Add a Milestone (Optional)';
+        desc.innerText = step === 1 ? 'Let’s set up your first skill.' :
+                        step === 2 ? 'Organize it by category and tags.' : 'Want to add a starting milestone?';
+    }
+    document.getElementById('onboarding-back-btn')?.classList.toggle('hidden', step === 1);
 }
 
-
-
-
-// Calculate progress percentage with weights
+// Calculate progress
 function calculateProgress(skill) {
-    if (!skill.milestones.length) return 0;
+    if (!skill.milestones?.length) return 0;
     const totalWeight = skill.milestones.reduce((sum, m) => sum + (m.weight || 1), 0);
     const completedWeight = skill.milestones.filter(m => m.completed).reduce((sum, m) => sum + (m.weight || 1), 0);
     return Math.round((completedWeight / totalWeight) * 100);
@@ -359,26 +375,26 @@ function getBadges(skill) {
     const badges = [];
     if (streak >= 5) badges.push('🔥 5-Day Streak');
     if (calculateProgress(skill) === 100) badges.push('🏆 Master');
-    if (skill.practiceHistory && skill.practiceHistory.length >= 10) badges.push('⏰ Consistency');
+    if (skill.practiceHistory?.length >= 10) badges.push('⏰ Consistency');
     if (skill.milestones.filter(m => m.completed).length >= 10) badges.push('🎯 Milestone Master');
-    if (skill.practiceHistory && skill.practiceHistory.length >= 20) badges.push('🏋️ Practice Pro');
+    if (skill.practiceHistory?.length >= 20) badges.push('🏋️ Practice Pro');
     const oneWeekAgo = dayjs().subtract(7, 'day');
-    const recentReflections = skill.reflections.filter(r => dayjs(r.date).isAfter(oneWeekAgo)).length;
+    const recentReflections = skill.reflections?.filter(r => dayjs(r.date).isAfter(oneWeekAgo)).length || 0;
     if (recentReflections >= 3) badges.push('📝 Reflective Thinker');
-    // Styled to Sell badges
-    const styledGoalsCount = skills.filter(s => s.tags?.includes('StyledToSell')).length;
-    if (styledGoalsCount >= 3) badges.push('🌟 Styled Starter');
+    if (skills.filter(s => s.tags?.includes('StyledToSell')).length >= 3) badges.push('🌟 Styled Starter');
     if (new Set(styledLogs.map(l => l.date)).size >= 5) badges.push('👑 Consistent Queen');
     if (styledLogs.filter(l => l.post.toLowerCase().includes('sales')).length >= 3) badges.push('🚀 Launch Ready');
-
     return badges;
 }
 
-// 💾 Save unlocked badge IDs to localStorage
+function getUnlockedBadgeIds() {
+    return JSON.parse(localStorage.getItem('unlockedBadges') || '[]');
+}
+
 function saveUnlockedBadges(badges) {
     const unlockedIds = badges.filter(b => b.unlocked).map(b => b.id);
     localStorage.setItem('unlockedBadges', JSON.stringify(unlockedIds));
-    if (user && supabase) {
+    if (user) {
         supabase.from('user_data').upsert({
             user_id: user.id,
             unlocked_badges: unlockedIds
@@ -386,178 +402,19 @@ function saveUnlockedBadges(badges) {
     }
 }
 
-function getUnlockedBadgeIds() {
-    return JSON.parse(localStorage.getItem('unlockedBadges') || '[]');
-}
-
-function openBadgeGallery() {
-    const modal = document.getElementById('badge-gallery-modal');
-    const container = document.getElementById('badge-gallery-content');
-    container.innerHTML = '';
-
-    const allBadges = [
-        {
-            id: 'streak5',
-            icon: '🔥',
-            name: '5-Day Streak',
-            description: 'Practice for 5 consecutive days.',
-            unlocked: streak >= 5,
-            tier: 'Bronze',
-            progress: `${streak}/5 days`
-        },
-        {
-            id: 'mastery',
-            icon: '🏆',
-            name: 'Master',
-            description: 'Reach 100% progress on a skill.',
-            unlocked: skills.some(s => calculateProgress(s) === 100),
-            tier: 'Gold',
-            progress: skills.map(s => calculateProgress(s)).sort((a, b) => b - a)[0] + '%'
-        },
-        {
-            id: 'consistency10',
-            icon: '⏰',
-            name: 'Consistency',
-            description: 'Practice a skill for at least 10 days.',
-            unlocked: skills.some(s => (s.practiceHistory || []).length >= 10),
-            tier: 'Silver',
-            progress: Math.max(...skills.map(s => (s.practiceHistory || []).length)) + '/10 sessions'
-        },
-        {
-            id: 'milestone10',
-            icon: '🎯',
-            name: 'Milestone Master',
-            description: 'Complete 10 milestones on a skill.',
-            unlocked: skills.some(s => s.milestones.filter(m => m.completed).length >= 10),
-            tier: 'Gold',
-            progress: Math.max(...skills.map(s => s.milestones.filter(m => m.completed).length)) + '/10 done'
-        },
-        {
-            id: 'practice20',
-            icon: '🏋️',
-            name: 'Practice Pro',
-            description: 'Practice 20 times on a skill.',
-            unlocked: skills.some(s => (s.practiceHistory || []).length >= 20),
-            tier: 'Gold',
-            progress: Math.max(...skills.map(s => (s.practiceHistory || []).length)) + '/20 sessions'
-        },
-        {
-            id: 'reflective3',
-            icon: '📝',
-            name: 'Reflective Thinker',
-            description: 'Write 3+ reflections in the past week.',
-            unlocked: skills.some(s => (s.reflections || []).filter(r => dayjs(r.date).isAfter(dayjs().subtract(7, 'day'))).length >= 3),
-            tier: 'Silver',
-            progress: Math.max(...skills.map(s => (s.reflections || []).filter(r => dayjs(r.date).isAfter(dayjs().subtract(7, 'day'))).length)) + '/3 reflections'
-        },
-        {
-            id: 'styledStarter',
-            icon: '🌟',
-            name: 'Styled Starter',
-            description: 'Add 3 Styled to Sell goals.',
-            unlocked: skills.filter(s => s.tags?.includes('StyledToSell')).length >= 3,
-            tier: 'Bronze',
-            progress: `${skills.filter(s => s.tags?.includes('StyledToSell')).length}/3 goals`
-        },
-        {
-            id: 'consistentQueen',
-            icon: '👑',
-            name: 'Consistent Queen',
-            description: 'Log posts for 5 different days.',
-            unlocked: new Set(styledLogs.map(l => l.date)).size >= 5,
-            tier: 'Silver',
-            progress: `${new Set(styledLogs.map(l => l.date)).size}/5 days`
-        },
-        {
-            id: 'launchReady',
-            icon: '🚀',
-            name: 'Launch Ready',
-            description: 'Complete 3 sales-focused tasks.',
-            unlocked: styledLogs.filter(l => l.post.toLowerCase().includes('sales')).length >= 3,
-            tier: 'Gold',
-            progress: `${styledLogs.filter(l => l.post.toLowerCase().includes('sales')).length}/3 tasks`
-        }
-    ];
-
-    saveUnlockedBadges(allBadges);
-    const unlockedIds = getUnlockedBadgeIds();
-
-    allBadges.forEach(b => {
-        const style = b.unlocked ? 'bg-green-100 dark:bg-green-800 animate-badge-pop' : 'bg-gray-100 dark:bg-gray-700 opacity-50';
-        const tierColor = b.tier === 'Gold' ? 'text-yellow-500' : b.tier === 'Silver' ? 'text-gray-400' : 'text-orange-500';
-        const tooltip = `${b.description}\nProgress: ${b.progress}`;
-        container.innerHTML += `
-      <div class="p-4 rounded-lg shadow-sm border ${style}" title="${tooltip}">
-        <h4 class="text-lg font-semibold flex items-center gap-2 ${tierColor}">
-          <span class="text-2xl">${b.icon}</span> ${b.name} (${b.tier})
-        </h4>
-        <p class="text-sm text-gray-600 dark:text-gray-300 mt-1">${b.description}</p>
-        <p class="text-xs mt-2 font-bold ${b.unlocked ? 'text-green-600' : 'text-gray-500'}">
-          ${b.unlocked ? 'Unlocked' : 'Locked'} • ${b.progress}
-        </p>
-      </div>`;
-    });
-
-    modal.classList.remove('hidden');
-}
-
-
-function closeBadgeGallery() {
-    document.getElementById('badge-gallery-modal').classList.add('hidden');
-}
-
-// 🔔 Check and notify new badges on dashboard render
 function checkNewBadges() {
     const previous = new Set(getUnlockedBadgeIds());
-
     const badgeData = [
-        {
-            id: 'streak5',
-            unlocked: streak >= 5,
-            label: '🔥 5-Day Streak'
-        },
-        {
-            id: 'mastery',
-            unlocked: skills.some(s => calculateProgress(s) === 100),
-            label: '🏆 Master'
-        },
-        {
-            id: 'consistency10',
-            unlocked: skills.some(s => (s.practiceHistory || []).length >= 10),
-            label: '⏰ Consistency'
-        },
-        {
-            id: 'milestone10',
-            unlocked: skills.some(s => s.milestones.filter(m => m.completed).length >= 10),
-            label: '🎯 Milestone Master'
-        },
-        {
-            id: 'practice20',
-            unlocked: skills.some(s => (s.practiceHistory || []).length >= 20),
-            label: '🏋️ Practice Pro'
-        },
-        {
-            id: 'reflective3',
-            unlocked: skills.some(s => (s.reflections || []).filter(r => dayjs(r.date).isAfter(dayjs().subtract(7, 'day'))).length >= 3),
-            label: '📝 Reflective Thinker'
-        },
-        {
-            id: 'styledStarter',
-            unlocked: skills.filter(s => s.tags?.includes('StyledToSell')).length >= 3,
-            label: '🌟 Styled Starter'
-        },
-        {
-            id: 'consistentQueen',
-            unlocked: new Set(styledLogs.map(l => l.date)).size >= 5,
-            label: '👑 Consistent Queen'
-        },
-        {
-            id: 'launchReady',
-            unlocked: styledLogs.filter(l => l.post.toLowerCase().includes('sales')).length >= 3,
-            label: '🚀 Launch Ready'
-        }
+        { id: 'streak5', unlocked: streak >= 5, label: '🔥 5-Day Streak' },
+        { id: 'mastery', unlocked: skills.some(s => calculateProgress(s) === 100), label: '🏆 Master' },
+        { id: 'consistency10', unlocked: skills.some(s => s.practiceHistory?.length >= 10), label: '⏰ Consistency' },
+        { id: 'milestone10', unlocked: skills.some(s => s.milestones.filter(m => m.completed).length >= 10), label: '🎯 Milestone Master' },
+        { id: 'practice20', unlocked: skills.some(s => s.practiceHistory?.length >= 20), label: '🏋️ Practice Pro' },
+        { id: 'reflective3', unlocked: skills.some(s => (s.reflections || []).filter(r => dayjs(r.date).isAfter(dayjs().subtract(7, 'day'))).length >= 3), label: '📝 Reflective Thinker' },
+        { id: 'styledStarter', unlocked: skills.filter(s => s.tags?.includes('StyledToSell')).length >= 3, label: '🌟 Styled Starter' },
+        { id: 'consistentQueen', unlocked: new Set(styledLogs.map(l => l.date)).size >= 5, label: '👑 Consistent Queen' },
+        { id: 'launchReady', unlocked: styledLogs.filter(l => l.post.toLowerCase().includes('sales')).length >= 3, label: '🚀 Launch Ready' }
     ];
-
     const newlyUnlocked = badgeData.filter(b => b.unlocked && !previous.has(b.id));
     if (newlyUnlocked.length > 0) {
         const unlockedIds = [...previous, ...newlyUnlocked.map(b => b.id)];
@@ -569,44 +426,99 @@ function checkNewBadges() {
                 showToast(`🎉 You unlocked a new badge: ${b.label}`);
             }
         });
+        saveState();
     }
 }
 
-
-// Render empty state
-function renderEmptyState() {
-    const main = document.getElementById('main-content');
-    main.innerHTML = `
-        <div class="flex items-center justify-center min-h-[50vh]">
-            <div class="bg-white dark:bg-gray-700 p-6 rounded-lg shadow-lg text-center">
-                <h2 class="text-xl font-semibold dark:text-white mb-4">No Skills Yet</h2>
-                <p class="text-gray-600 dark:text-gray-300 mb-4">Start your journey by adding a new skill!</p>
-                <button onclick="openAddSkillModal()" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700" aria-label="Create new skill">Create Skill</button>
-            </div>
-        </div>
-    `;
-    hideLoading();
+function openBadgeGallery() {
+    const modal = document.getElementById('badge-gallery-modal');
+    const container = document.getElementById('badge-gallery-content');
+    if (!modal || !container) return;
+    container.innerHTML = '';
+    const allBadges = [
+        {
+            id: 'streak5', icon: '🔥', name: '5-Day Streak', description: 'Practice for 5 consecutive days.',
+            unlocked: streak >= 5, tier: 'Bronze', progress: `${streak}/5 days`
+        },
+        {
+            id: 'mastery', icon: '🏆', name: 'Master', description: 'Reach 100% progress on a skill.',
+            unlocked: skills.some(s => calculateProgress(s) === 100), tier: 'Gold',
+            progress: `${Math.max(...skills.map(s => calculateProgress(s)))}%`
+        },
+        {
+            id: 'consistency10', icon: '⏰', name: 'Consistency', description: 'Practice a skill for at least 10 days.',
+            unlocked: skills.some(s => s.practiceHistory?.length >= 10), tier: 'Silver',
+            progress: `${Math.max(...skills.map(s => s.practiceHistory?.length || 0))}/10 sessions`
+        },
+        {
+            id: 'milestone10', icon: '🎯', name: 'Milestone Master', description: 'Complete 10 milestones on a skill.',
+            unlocked: skills.some(s => s.milestones.filter(m => m.completed).length >= 10), tier: 'Gold',
+            progress: `${Math.max(...skills.map(s => s.milestones.filter(m => m.completed).length))}/10 done`
+        },
+        {
+            id: 'practice20', icon: '🏋️', name: 'Practice Pro', description: 'Practice 20 times on a skill.',
+            unlocked: skills.some(s => s.practiceHistory?.length >= 20), tier: 'Gold',
+            progress: `${Math.max(...skills.map(s => s.practiceHistory?.length || 0))}/20 sessions`
+        },
+        {
+            id: 'reflective3', icon: '📝', name: 'Reflective Thinker', description: 'Write 3+ reflections in the past week.',
+            unlocked: skills.some(s => (s.reflections || []).filter(r => dayjs(r.date).isAfter(dayjs().subtract(7, 'day'))).length >= 3), tier: 'Silver',
+            progress: `${Math.max(...skills.map(s => (s.reflections || []).filter(r => dayjs(r.date).isAfter(dayjs().subtract(7, 'day'))).length))}/3 reflections`
+        },
+        {
+            id: 'styledStarter', icon: '🌟', name: 'Styled Starter', description: 'Add 3 Styled to Sell goals.',
+            unlocked: skills.filter(s => s.tags?.includes('StyledToSell')).length >= 3, tier: 'Bronze',
+            progress: `${skills.filter(s => s.tags?.includes('StyledToSell')).length}/3 goals`
+        },
+        {
+            id: 'consistentQueen', icon: '👑', name: 'Consistent Queen', description: 'Log posts for 5 different days.',
+            unlocked: new Set(styledLogs.map(l => l.date)).size >= 5, tier: 'Silver',
+            progress: `${new Set(styledLogs.map(l => l.date)).size}/5 days`
+        },
+        {
+            id: 'launchReady', icon: '🚀', name: 'Launch Ready', description: 'Complete 3 sales-focused tasks.',
+            unlocked: styledLogs.filter(l => l.post.toLowerCase().includes('sales')).length >= 3, tier: 'Gold',
+            progress: `${styledLogs.filter(l => l.post.toLowerCase().includes('sales')).length}/3 tasks`
+        }
+    ];
+    saveUnlockedBadges(allBadges);
+    allBadges.forEach(b => {
+        const style = b.unlocked ? 'bg-green-100 dark:bg-green-800 animate-badge-pop' : 'bg-gray-100 dark:bg-gray-700 opacity-50';
+        const tierColor = b.tier === 'Gold' ? 'text-yellow-500' : b.tier === 'Silver' ? 'text-gray-400' : 'text-orange-500';
+        container.innerHTML += `
+            <div class="p-4 rounded-lg shadow-sm border ${style}" title="${b.description}\nProgress: ${b.progress}">
+                <h4 class="text-lg font-semibold flex items-center gap-2 ${tierColor}">
+                    <span class="text-2xl">${b.icon}</span> ${b.name} (${b.tier})
+                </h4>
+                <p class="text-sm text-gray-600 dark:text-gray-300 mt-1">${b.description}</p>
+                <p class="text-xs mt-2 font-bold ${b.unlocked ? 'text-green-600' : 'text-gray-500'}">
+                    ${b.unlocked ? 'Unlocked' : 'Locked'} • ${b.progress}
+                </p>
+            </div>`;
+    });
+    modal.classList.remove('hidden');
 }
 
-// Render Dashboard with category, tag filter, search, and sorting
+function closeBadgeGallery() {
+    document.getElementById('badge-gallery-modal')?.classList.add('hidden');
+}
+
+// Render dashboard
 function renderDashboard(filter = null, type = 'category', sort = 'alphabetical', searchQuery = '') {
     showLoading();
     setTimeout(() => {
         checkNewBadges();
         currentSkillId = null;
-
         const main = document.getElementById('main-content');
+        if (!main) return;
         if (!skills.length) {
             renderEmptyState();
-            hideLoading();
             return;
         }
-
         const filteredSkills = getFilteredSkills(filter, type, searchQuery);
         const sortedSkills = sortSkills(filteredSkills, sort);
-
         main.innerHTML = `
-        ${styledToSellMode ? `
+            ${styledToSellMode ? `
                 <div id="styled-mode-banner" class="bg-pink-500 text-white p-4 mb-4 rounded-lg flex justify-between items-center">
                     <div>
                         <strong>✅ Styled to Sell Mode Active</strong>
@@ -617,11 +529,9 @@ function renderDashboard(filter = null, type = 'category', sort = 'alphabetical'
             ` : ''}
             ${renderTopBar(filter, type, sort, searchQuery)}
             ${renderStats()}
-             ${styledToSellMode ? renderStyledTracker() : ''}
-           ${renderSkillCards(sortedSkills)}
-
+            ${styledToSellMode ? renderStyledTracker() : ''}
+            ${renderSkillCards(sortedSkills)}
         `;
-
         attachSearchInput(filter, type, sort);
         updateCategoryDropdown();
         hideLoading();
@@ -630,6 +540,22 @@ function renderDashboard(filter = null, type = 'category', sort = 'alphabetical'
 
 function dismissStyledBanner() {
     document.getElementById('styled-mode-banner')?.classList.add('hidden');
+}
+
+function renderEmptyState() {
+    const main = document.getElementById('main-content');
+    if (main) {
+        main.innerHTML = `
+            <div class="flex items-center justify-center min-h-[50vh]">
+                <div class="bg-white dark:bg-gray-700 p-6 rounded-lg shadow-lg text-center">
+                    <h2 class="text-xl font-semibold dark:text-white mb-4">No Skills Yet</h2>
+                    <p class="text-gray-600 dark:text-gray-300 mb-4">Start your journey by adding a new skill!</p>
+                    <button onclick="openAddSkillModal()" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700" aria-label="Create new skill">Create Skill</button>
+                </div>
+            </div>
+        `;
+    }
+    hideLoading();
 }
 
 function renderStyledTracker() {
@@ -674,15 +600,13 @@ function renderStyledTracker() {
 }
 
 function addStyledLog() {
-    const post = document.getElementById('post-today').value.trim();
-    const performance = document.getElementById('post-performance').value.trim();
-    const learn = document.getElementById('post-learn').value.trim();
-    
+    const post = document.getElementById('post-today')?.value.trim();
+    const performance = document.getElementById('post-performance')?.value.trim();
+    const learn = document.getElementById('post-learn')?.value.trim();
     if (!post || !performance || !learn) {
-        showToast('Please fill all fields');
+        showToast('Please fill all fields', 'error');
         return;
     }
-    
     styledLogs.push({
         id: uuidv4(),
         post,
@@ -690,11 +614,9 @@ function addStyledLog() {
         learn,
         date: new Date().toISOString()
     });
-    
     document.getElementById('post-today').value = '';
     document.getElementById('post-performance').value = '';
     document.getElementById('post-learn').value = '';
-    
     saveState();
     renderDashboard();
 }
@@ -715,19 +637,14 @@ function downloadStyledLogs() {
 
 function getFilteredSkills(filter, type, searchQuery) {
     let result = [...skills];
-
     if (filter) {
         result = type === 'category'
             ? result.filter(s => s.category === filter)
-            : result.filter(s => s.tags && s.tags.includes(filter));
+            : result.filter(s => s.tags?.includes(filter));
     }
-
     if (searchQuery) {
-        result = result.filter(s =>
-            s.name.toLowerCase().includes(searchQuery.toLowerCase())
-        );
+        result = result.filter(s => s.name.toLowerCase().includes(searchQuery.toLowerCase()));
     }
-
     return result;
 }
 
@@ -742,103 +659,36 @@ function sortSkills(skills, sort) {
 function renderTopBar(filter, type, sort, searchQuery) {
     const currentView = localStorage.getItem('skillView') || 'grid';
     const icon = currentView === 'grid' ? '📃 List' : '🔲 Grid';
-
     return `
         <div class="mb-4">
-            <!-- Toggle Button: Only visible on small screens -->
             <div class="flex justify-end mb-2 md:hidden">
-                <button onclick="toggleTopBar()" class="px-4 py-2 rounded bg-blue-600 text-white">
-                    ☰ Filters
-                </button>
+                <button onclick="toggleTopBar()" class="px-4 py-2 rounded bg-blue-600 text-white">☰ Filters</button>
             </div>
-
-            <!-- Collapsible Top Bar Content -->
             <div id="topbar-collapse" class="hidden md:flex md:flex-wrap gap-3 items-center transition-all duration-300 ease-in-out">
-                <input
-                    id="search-skills"
-                    type="text"
-                    placeholder="Search skills..."
-                    value="${searchQuery}"
-                    class="w-full md:flex-1 p-2 rounded-lg border dark:bg-gray-700 dark:text-white dark:border-gray-600"
-                    aria-label="Search skills"
-                />
+                <input id="search-skills" type="text" placeholder="Search skills..." value="${searchQuery || ''}" class="w-full md:flex-1 p-2 rounded-lg border dark:bg-gray-700 dark:text-white dark:border-gray-600" aria-label="Search skills"/>
                 <div class="flex flex-col md:flex-row gap-3 w-full md:w-auto">
-                    ${renderFilterDropdown(
-        'category',
-        'Category',
-        [...new Set(skills.map(s => s.category || 'Uncategorized'))],
-        filter, type, sort, searchQuery
-    )}
-                    ${renderFilterDropdown(
-        'tag',
-        'Tag',
-        [...new Set(skills.flatMap(s => s.tags || []))],
-        filter, type, sort, searchQuery
-    )}
+                    ${renderFilterDropdown('category', 'Category', [...new Set(skills.map(s => s.category || 'Uncategorized'))], filter, type, sort, searchQuery)}
+                    ${renderFilterDropdown('tag', 'Tag', [...new Set(skills.flatMap(s => s.tags || []))], filter, type, sort, searchQuery)}
                 </div>
                 <div class="flex flex-wrap gap-2 w-full md:w-auto">
-                    <button onclick="exportData('json')" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 w-full md:w-auto">
-                        Export JSON
-                    </button>
-                    <button onclick="exportData('csv')" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 w-full md:w-auto">
-                        Export CSV
-                    </button>
-                    <button onclick="toggleSkillView()" class="bg-gray-200 dark:bg-gray-800 dark:text-white px-4 py-2 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-700 w-full md:w-auto">
-                        ${icon}
-                    </button>
-                    ${!styledToSellMode ? `
-                        <button onclick="openStyledModeModal()" class="bg-pink-500 text-white px-4 py-2 rounded-lg hover:bg-pink-600 w-full md:w-auto">
-                            Unlock Styled Mode
-                        </button>
-                    ` : ''}
-                    ${!user ? `
-                        <button onclick="openLoginModal()" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 w-full md:w-auto">
-                            Login
-                        </button>
-                    ` : `
-                        <button onclick="logout()" class="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 w-full md:w-auto">
-                            Logout
-                        </button>
-                    `}
-                    <button onclick="toggleSkillView()" class="bg-gray-200 dark:bg-gray-800 dark:text-white px-4 py-2 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-700 w-full md:w-auto">
-                        ${icon}
-                    </button>
+                    <button onclick="exportData('json')" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 w-full md:w-auto">Export JSON</button>
+                    <button onclick="exportData('csv')" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 w-full md:w-auto">Export CSV</button>
+                    <button onclick="toggleSkillView()" class="bg-gray-200 dark:bg-gray-800 dark:text-white px-4 py-2 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-700 w-full md:w-auto">${icon}</button>
+                    ${!styledToSellMode ? `<button onclick="openStyledModeModal()" class="bg-pink-500 text-white px-4 py-2 rounded-lg hover:bg-pink-600 w-full md:w-auto">Unlock Styled Mode</button>` : ''}
+                    ${!user ? `<button onclick="openLoginModal()" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 w-full md:w-auto">Login</button>` : `<button onclick="logout()" class="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 w-full md:w-auto">Logout</button>`}
                 </div>
             </div>
         </div>
     `;
 }
 
-function openStyledModeModal() {
-    document.getElementById('styled-mode-modal').classList.remove('hidden');
+function toggleTopBar() {
+    document.getElementById('topbar-collapse')?.classList.toggle('hidden');
 }
-
-function closeStyledModeModal() {
-    document.getElementById('styled-mode-modal').classList.add('hidden');
-}
-
-function openLoginModal() {
-    document.getElementById('login-modal').classList.remove('hidden');
-}
-
-function closeLoginModal() {
-    document.getElementById('login-modal').classList.add('hidden');
-}
-
-function toggleSkillView() {
-    const currentView = localStorage.getItem('skillView') || 'grid';
-    const newView = currentView === 'grid' ? 'list' : 'grid';
-    localStorage.setItem('skillView', newView);
-    renderDashboard(); // re-render with the new view
-}
-
 
 function renderFilterDropdown(typeKey, label, options, filter, type, sort, searchQuery) {
     return `
-        <select id="${typeKey}-filter" 
-            onchange="renderDashboard(this.value, '${typeKey}', document.getElementById('sort-skills')?.value || '${sort}', document.getElementById('search-skills').value)"
-            class="p-2 rounded-lg border dark:bg-gray-700 dark:text-white dark:border-gray-600" 
-            aria-label="Filter by ${label}">
+        <select id="${typeKey}-filter" onchange="renderDashboard(this.value, '${typeKey}', document.getElementById('sort-skills')?.value || '${sort}', document.getElementById('search-skills')?.value || '')" class="p-2 rounded-lg border dark:bg-gray-700 dark:text-white dark:border-gray-600" aria-label="Filter by ${label}">
             <option value="">All ${label}s</option>
             ${options.map(opt => `<option value="${opt}" ${filter === opt && type === typeKey ? 'selected' : ''}>${opt}</option>`).join('')}
         </select>
@@ -858,20 +708,9 @@ function renderStats() {
 
 function renderSkillCards(skillsArray) {
     const viewType = localStorage.getItem('skillView') || 'grid';
-
-    if (viewType === 'list') {
-        return `
-            <div class="space-y-4">
-                ${skillsArray.map(renderSkillCardList).join('')}
-            </div>
-        `;
-    }
-
-    return `
-        <div class="grid grid-cols-1 md:grid-cols-4 gap-5">
-            ${skillsArray.map(renderSkillCardGrid).join('')}
-        </div>
-    `;
+    return viewType === 'list' ?
+        `<div class="space-y-4">${skillsArray.map(renderSkillCardList).join('')}</div>` :
+        `<div class="grid grid-cols-1 md:grid-cols-4 gap-5">${skillsArray.map(renderSkillCardGrid).join('')}</div>`;
 }
 
 function renderSkillCardGrid(skill) {
@@ -880,21 +719,16 @@ function renderSkillCardGrid(skill) {
         <div id="skill-card-${skill.id}" class="skill-card dark:bg-gray-800 p-4 rounded-lg shadow-md transition-transform transform hover:scale-105 w-full">
             <h2 class="text-lg sm:text-xl font-semibold dark:text-white break-words">${skill.name} (${skill.category || 'Uncategorized'})</h2>
             <p class="text-sm text-gray-600 dark:text-gray-400 break-words">${skill.tags?.join(', ') || ''}</p>
-
             <div class="relative w-20 h-20 sm:w-24 sm:h-24 mx-auto my-4">
                 <svg class="w-full h-full" viewBox="0 0 36 36">
                     <circle cx="18" cy="18" r="15.9155" fill="none" stroke="#e5e7eb" stroke-width="2" />
-                    <circle class="progress-ring" cx="18" cy="18" r="15.9155" fill="none" stroke="#3b82f6" stroke-width="2"
-                        stroke-dasharray="${progress}, 100" transform="rotate(-90 18 18)" />
-                    <text x="20" y="20" text-anchor="middle" fill="currentColor" class="text-sm dark:text-white">${progress}%</text>
+                    <circle class="progress-ring" cx="18" cy="18" r="15.9155" fill="none" stroke="#3b82f6" stroke-width="2" stroke-dasharray="${progress}, 100" transform="rotate(-90 18 18)" />
+                    <text x="18" y="22" text-anchor="middle" fill="currentColor" class="text-sm dark:text-white">${progress}%</text>
                 </svg>
             </div>
-
             <p class="text-sm text-gray-600 dark:text-gray-300">${skill.milestones.filter(m => m.completed).length}/${skill.milestones.length} Milestones</p>
             <p class="text-lg">${getStatusEmoji(progress)}</p>
-
-            <div class="mt-2 flex flex-wrap gap-1">${getBadges(skill).map(b => `<span class="badge">${b}</span>`).join(' ')}</div>
-
+            <div class="mt-2 flex flex-wrap gap-1">${getBadges(skill).map(b => `<span class="badge">${b}</span>`).join('')}</div>
             <div class="mt-4 flex flex-wrap gap-2 justify-center sm:justify-start">
                 <button onclick="viewSkill('${skill.id}')" class="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700">View</button>
                 <button onclick="editSkill('${skill.id}')" class="bg-yellow-600 text-white px-3 py-1 rounded-lg">Edit</button>
@@ -905,7 +739,6 @@ function renderSkillCardGrid(skill) {
     `;
 }
 
-
 function renderSkillCardList(skill) {
     const progress = calculateProgress(skill);
     return `
@@ -914,10 +747,9 @@ function renderSkillCardList(skill) {
                 <h3 class="text-lg sm:text-xl font-semibold break-words">${skill.name} (${skill.category || 'Uncategorized'})</h3>
                 <p class="text-sm text-gray-500 dark:text-gray-400 break-words">${skill.tags?.join(', ') || ''}</p>
                 <p class="text-sm mt-1">${progress}% complete — ${skill.milestones.filter(m => m.completed).length}/${skill.milestones.length} milestones</p>
-                <p class="text-xl">${getStatusEmoji(progress)}</p>
-                <div class="mt-2 flex flex-wrap gap-1">${getBadges(skill).map(b => `<span class="badge">${b}</span>`).join(' ')}</div>
+                <p class="text-lg">${getStatusEmoji(progress)}</p>
+                <div class="mt-2 flex flex-wrap gap-1">${getBadges(skill).map(b => `<span class="badge">${b}</span>`).join('')}</div>
             </div>
-
             <div class="flex flex-wrap gap-2 justify-center sm:justify-end sm:items-center">
                 <button onclick="viewSkill('${skill.id}')" class="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700">View</button>
                 <button onclick="editSkill('${skill.id}')" class="bg-yellow-600 text-white px-3 py-1 rounded-lg">Edit</button>
@@ -928,10 +760,9 @@ function renderSkillCardList(skill) {
     `;
 }
 
-
-
 function attachSearchInput(filter, type, sort) {
     const searchInput = document.getElementById('search-skills');
+    if (!searchInput) return;
     let debounceTimeout;
     searchInput.addEventListener('input', (e) => {
         clearTimeout(debounceTimeout);
@@ -953,19 +784,6 @@ function updateCategoryDropdown() {
     }
 }
 
-
-// Set random reflection prompt
-function setRandomPrompt() {
-    const prompts = [
-        'What was hard today?',
-        'What surprised you?',
-        'What did you learn?',
-        'How did you feel about your progress?',
-    ];
-    document.getElementById('new-reflection').placeholder = prompts[Math.floor(Math.random() * prompts.length)];
-}
-
-// Render Skill Detail with Chart, Heatmap, and Reflection Actions
 function renderSkillDetail(skillId) {
     showLoading();
     const skill = skills.find(s => s.id === skillId);
@@ -974,13 +792,14 @@ function renderSkillDetail(skillId) {
         hideLoading();
         return;
     }
-    currentSkillId = skillId; // Fixed: Use assignment, not comparison
+    currentSkillId = skillId;
     const main = document.getElementById('main-content');
+    if (!main) return;
     const prompts = [
         'What was hard today?',
         'What surprised you?',
         'What did you learn?',
-        'How did you feel about your progress?',
+        'How did you feel about your progress?'
     ];
     main.innerHTML = `
         <div class="bg-white dark:bg-gray-700 p-6 rounded-lg shadow-md">
@@ -997,7 +816,6 @@ function renderSkillDetail(skillId) {
                 <div class="relative h-[300px] w-full">
                     <canvas id="progressChart" width="400" height="200" class="w-full h-auto" aria-label="Progress chart"></canvas>
                 </div>
-               
                 <div class="relative w-4/5 mx-auto bg-gray-200 dark:bg-gray-600 rounded h-4 mt-4">
                     <div class="bg-blue-600 h-4 rounded" style="width: ${calculateProgress(skill)}%;"></div>
                 </div>
@@ -1005,9 +823,9 @@ function renderSkillDetail(skillId) {
             <div class="my-6">
                 <h3 class="text-lg font-semibold dark:text-white">Daily Practice</h3>
                 <div class="mb-2">
-                    ${[...['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']].map(day => `
+                    ${['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(day => `
                         <label class="inline-flex items-center mr-2">
-                            <input type="checkbox" class="h-5 w-5" onchange="togglePracticeDay('${skill.id}', '${day}')" ${skill.weeklyPractice && skill.weeklyPractice[day] ? 'checked' : ''} aria-label="Toggle ${day} practice">
+                            <input type="checkbox" class="h-5 w-5" onchange="togglePracticeDay('${skill.id}', '${day}')" ${skill.weeklyPractice?.[day] ? 'checked' : ''} aria-label="Toggle ${day} practice">
                             <span class="ml-1 dark:text-white">${day}</span>
                         </label>
                     `).join('')}
@@ -1028,8 +846,8 @@ function renderSkillDetail(skillId) {
                         <div class="flex items-center gap-2">
                             <input type="checkbox" ${m.completed ? 'checked' : ''} onchange="toggleMilestone('${skill.id}', '${m.id}')" class="h-5 w-5" aria-label="Toggle milestone ${m.title} completion">
                             <div>
-                                <p class="dark:text-white">${m.title}</p> (Weight: ${m.weight || '1'})
-                                ${m.deadline ? `<p class="text-sm text-gray-500 dark:text-gray-300">Due: ${dayjs(m.deadline).format('MMM d, YYYY')}</p>` : ''}</p>
+                                <p class="dark:text-white">${m.title} (Weight: ${m.weight || 1})</p>
+                                ${m.deadline ? `<p class="text-sm text-gray-500 dark:text-gray-300">Due: ${dayjs(m.deadline).format('MMM D, YYYY')}</p>` : ''}
                             </div>
                         </div>
                         <div class="flex gap-2">
@@ -1046,9 +864,9 @@ function renderSkillDetail(skillId) {
                     <button onclick="addReflection('${skill.id}')" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-800" aria-label="Save reflection">Save</button>
                 </div>
                 <div class="mt-4">
-                    ${[...skill.reflections].slice().reverse().map(r => `
+                    ${skill.reflections.slice().reverse().map(r => `
                         <div class="p-4 border-b dark:border-gray-600">
-                            <p class="text-sm text-gray-500 dark:text-gray-400">${dayjs(r.date).format('MMM d, YYYY HH:mm')}</p>
+                            <p class="text-sm text-gray-500 dark:text-gray-400">${dayjs(r.date).format('MMM D, YYYY HH:mm')}</p>
                             <p class="dark:text-white">${r.text}</p>
                             <div class="flex gap-2 mt-2">
                                 <button onclick="editReflection('${skill.id}', '${r.id}')" class="text-blue-600 dark:text-blue-400 hover:underline" aria-label="Edit reflection">Edit</button>
@@ -1061,53 +879,35 @@ function renderSkillDetail(skillId) {
         </div>
     `;
     renderChart(skillId, 'day');
-    renderHeatmap(skillId); // Fixed: Pass skillId correctly
+    renderHeatmap(skillId);
     hideLoading();
 }
 
-// Render Chart.js chart with daily/weekly toggle
 function renderChart(skillId, unit) {
     const skill = skills.find(s => s.id === skillId);
-    if (!skill || !skill.progressLog) {
-        console.warn(`No skill or progress data available for skill ID: ${skillId}`);
-        return;
-    }
-
+    if (!skill || !skill.progressLog) return;
     const ctx = document.getElementById('progressChart');
-    if (!ctx) {
-        console.error('Progress chart canvas element not found');
-        return;
+    if (!ctx) return;
+    if (progressChart) {
+        progressChart.destroy();
+        progressChart = null;
     }
-
-    // Destroy existing chart if it exists
-    try {
-        if (progressChart && typeof progressChart.destroy === 'function') {
-            progressChart.destroy();
-            progressChart = null;
-        }
-    } catch (e) {
-        console.warn('Error destroying existing chart:', e);
-    }
-
-    // Clear canvas to prevent reuse issues
     ctx.getContext('2d').clearRect(0, 0, ctx.width, ctx.height);
-
     try {
         const progressData = skill.progressLog.map(log => ({
-            x: dayjs(log.date).toDate(), // Convert dayjs to native JS Date
+            x: new Date(log.date),
             y: Number(log.progress) || 0
         }));
-
         progressChart = new Chart(ctx, {
             type: 'line',
             data: {
                 datasets: [{
                     label: `${skill.name} Progress`,
                     data: progressData,
-                    borderColor: '#3b82f6',
-                    backgroundColor: 'rgba(59, 130, 246, 0.2)',
+                    borderColor: styledToSellMode && skill.tags?.includes('StyledToSell') ? '#ec4899' : '#3b82f6',
+                    backgroundColor: styledToSellMode && skill.tags?.includes('StyledToSell') ? 'rgba(236, 72, 153, 0.2)' : 'rgba(59, 130, 246, 0.2)',
                     fill: true,
-                    tension: 0.5,
+                    tension: 0.4
                 }]
             },
             options: {
@@ -1118,77 +918,58 @@ function renderChart(skillId, unit) {
                         type: 'time',
                         time: {
                             unit: unit,
-                            tooltipFormat: 'MMM d, yyyy',
+                            tooltipFormat: 'MMM D, YYYY',
                             displayFormats: {
-                                day: 'MMM d',
-                                week: 'MMM yyyy'
+                                day: 'MMM D',
+                                week: 'MMM YYYY'
                             }
                         },
-                        title: {
-                            display: true,
-                            text: 'Date'
-                        },
-                        adapters: {
-                            date: {
-                                locale: window.dateFnsLocaleEnUS || null // Use global locale
-                            }
-                        }
+                        title: { display: true, text: 'Date' }
                     },
                     y: {
                         beginAtZero: true,
                         max: 100,
-                        title: {
-                            display: true,
-                            text: 'Progress (%)'
-                        }
+                        title: { display: true, text: 'Progress (%)' }
                     }
                 }
             }
         });
     } catch (error) {
         console.error('Error rendering chart:', error);
+        showToast('Error rendering chart', 'error');
     }
 }
 
-// Export chart as PNG or PDF
 function exportChart(skillId) {
     const skill = skills.find(s => s.id === skillId);
     const canvas = document.getElementById('progressChart');
-    if (!canvas) {
-        console.error('Canvas element not found for export');
-        return;
-    }
+    if (!skill || !canvas) return;
     try {
         html2canvas(canvas).then(canvas => {
             const imgData = canvas.toDataURL('image/png');
-            // PNG export
             const link = document.createElement('a');
             link.download = `${skill.name}-progress.png`;
             link.href = imgData;
             link.click();
-            // PDF export
             const pdf = new jsPDF();
             pdf.addImage(imgData, 'PNG', 10, 10, 190, 100);
             pdf.save(`${skill.name}-progress.pdf`);
         });
     } catch (error) {
         console.error('Error exporting chart:', error);
+        showToast('Error exporting chart', 'error');
     }
 }
 
-// Render practice heatmap
 function renderHeatmap(skillId) {
     const skill = skills.find(s => s.id === skillId);
     const heatmap = document.getElementById('practiceHeatmap');
-    if (!heatmap) {
-        console.error('Heatmap element not found');
-        return;
-    }
+    if (!skill || !heatmap) return;
     heatmap.innerHTML = '';
     const today = dayjs();
     for (let i = 29; i >= 0; i--) {
         const date = today.subtract(i, 'day').format('YYYY-MM-DD');
-        const practiced = skill.practiceHistory && skill.practiceHistory.includes(date);
+        const practiced = skill.practiceHistory?.includes(date);
         const dayElement = document.createElement('div');
         dayElement.className = `heatmap-day ${practiced ? 'practiced' : ''}`;
         dayElement.title = date;
@@ -1196,19 +977,18 @@ function renderHeatmap(skillId) {
     }
 }
 
-// Add new skill
 function addSkill() {
     const input = document.getElementById('new-skill');
-    const category = document.getElementById('skill-category').value;
-    const tags = document.getElementById('skill-tags').value.split(',').map(t => t.trim()).filter(t => t);
-    if (!input.value.trim()) {
-        showToast('Skill name cannot be empty');
+    const category = document.getElementById('skill-category')?.value || 'Uncategorized';
+    const tags = document.getElementById('skill-tags')?.value.split(',').map(t => t.trim()).filter(t => t);
+    if (!input?.value.trim()) {
+        showToast('Skill name cannot be empty', 'error');
         return;
     }
     skills.push({
         id: uuidv4(),
         name: input.value.trim(),
-        category: category || 'Uncategorized',
+        category,
         tags,
         milestones: [],
         reflections: [],
@@ -1224,58 +1004,46 @@ function addSkill() {
     renderDashboard();
 }
 
-// Open/Close add skill modal
 function openAddSkillModal() {
-    document.getElementById('add-skill-modal').classList.remove('hidden');
+    document.getElementById('add-skill-modal')?.classList.remove('hidden');
 }
 
 function closeAddSkillModal() {
-    document.getElementById('add-skill-modal').classList.add('hidden');
+    document.getElementById('add-skill-modal')?.classList.add('hidden');
     document.getElementById('new-skill').value = '';
     document.getElementById('skill-category').value = '';
     document.getElementById('skill-tags').value = '';
 }
 
-// Edit skill
 let skillToEdit = null;
 
 function editSkill(skillId) {
     const skill = skills.find(s => s.id === skillId);
     if (!skill) return;
-
     skillToEdit = skillId;
     document.getElementById('edit-skill-name').value = skill.name;
     document.getElementById('edit-skill-category').value = skill.category || '';
     document.getElementById('edit-skill-tags').value = (skill.tags || []).join(', ');
-
-    document.getElementById('edit-skill-modal').classList.remove('hidden');
+    document.getElementById('edit-skill-modal')?.classList.remove('hidden');
 }
 
 function closeEditSkillModal() {
-    document.getElementById('edit-skill-modal').classList.add('hidden');
+    document.getElementById('edit-skill-modal')?.classList.add('hidden');
     skillToEdit = null;
 }
 
 function saveEditedSkill() {
     if (!skillToEdit) return;
-
     const skill = skills.find(s => s.id === skillToEdit);
     if (!skill) return;
-
-    skill.name = document.getElementById('edit-skill-name').value.trim();
-    skill.category = document.getElementById('edit-skill-category').value.trim();
-    skill.tags = document.getElementById('edit-skill-tags').value
-        .split(',')
-        .map(t => t.trim())
-        .filter(t => t);
-
+    skill.name = document.getElementById('edit-skill-name')?.value.trim();
+    skill.category = document.getElementById('edit-skill-category')?.value.trim() || 'Uncategorized';
+    skill.tags = document.getElementById('edit-skill-tags')?.value.split(',').map(t => t.trim()).filter(t => t);
     saveState();
     renderDashboard();
     closeEditSkillModal();
 }
 
-
-// Delete skill
 async function deleteSkill(skillId) {
     const confirmed = await showToastConfirm('Are you sure you want to delete this skill?');
     if (!confirmed) return;
@@ -1283,55 +1051,52 @@ async function deleteSkill(skillId) {
     saveState();
     renderDashboard();
     showToast('Skill deleted successfully');
-
 }
 
-// Toggle practice day
 function togglePracticeDay(skillId, day) {
     const skill = skills.find(s => s.id === skillId);
+    if (!skill) return;
     if (!skill.weeklyPractice) skill.weeklyPractice = {};
     skill.weeklyPractice[day] = !skill.weeklyPractice[day];
     saveState();
     renderSkillDetail(skillId);
 }
 
-// Add milestone
 function addMilestone(skillId) {
-    const title = document.getElementById('milestone-text').value.trim(); // Fixed: Correct ID
-    const weight = Math.max(1, Math.min(10, parseInt(document.getElementById('milestone-weight').value) || 1));
-    const deadline = document.getElementById('milestone-deadline').value;
+    const title = document.getElementById('milestone-text')?.value.trim();
+    const weight = Math.max(1, Math.min(10, parseInt(document.getElementById('milestone-weight')?.value) || 1));
+    const deadline = document.getElementById('milestone-deadline')?.value;
     if (!title) {
-        showToast('Milestone title cannot be empty');
+        showToast('Milestone title cannot be empty', 'error');
         return;
     }
     if (deadline && dayjs(deadline).isBefore(dayjs())) {
-        showToast('Deadline must be in the future');
+        showToast('Deadline must be in the future', 'error');
         return;
     }
     const skill = skills.find(s => s.id === skillId);
-    const milestone = {
+    if (!skill) return;
+    skill.milestones.push({
         id: uuidv4(),
         title,
         weight,
         deadline,
         completed: false,
         createdAt: new Date().toISOString()
-    };
-    skill.milestones.push(milestone);
+    });
     saveState();
     renderSkillDetail(skillId);
     if (deadline && Notification.permission === 'granted') {
-        scheduleNotification(skillId, milestone.id, title, deadline);
+        scheduleNotification(skillId, skill.milestones[skill.milestones.length - 1].id, title, deadline);
     }
 }
 
-// Schedule notification with capped timeout
 function scheduleNotification(skillId, milestoneId, title, deadline) {
     const dueDate = dayjs(deadline);
     const notificationDate = dueDate.subtract(1, 'day');
     const timeUntilNotification = notificationDate.diff(dayjs());
     if (timeUntilNotification > 0) {
-        const cappedTimeout = Math.min(timeUntilNotification, 2147483647); // Max setTimeout limit
+        const cappedTimeout = Math.min(timeUntilNotification, 2147483647);
         setTimeout(() => {
             if (Notification.permission === 'granted') {
                 new Notification(`Reminder: Milestone "${title}" is due tomorrow!`);
@@ -1340,17 +1105,17 @@ function scheduleNotification(skillId, milestoneId, title, deadline) {
     }
 }
 
-// Edit milestone
 function editMilestone(skillId, milestoneId) {
     const skill = skills.find(s => s.id === skillId);
-    const milestone = skill.milestones.find(m => m.id === milestoneId);
+    const milestone = skill?.milestones.find(m => m.id === milestoneId);
+    if (!milestone) return;
     const newTitle = prompt('Edit milestone title:', milestone.title);
-    if (newTitle && newTitle.trim()) {
+    if (newTitle?.trim()) {
         milestone.title = newTitle.trim();
         const newDeadline = prompt('Edit deadline (YYYY-MM-DD):', milestone.deadline || '');
         if (newDeadline) {
             if (dayjs(newDeadline).isBefore(dayjs())) {
-                showToast('Deadline must be in the future');
+                showToast('Deadline must be in the future', 'error');
                 return;
             }
             milestone.deadline = newDeadline;
@@ -1365,22 +1130,21 @@ function editMilestone(skillId, milestoneId) {
     }
 }
 
-// Delete milestone
 async function deleteMilestone(skillId, milestoneId) {
     const confirmed = await showToastConfirm('Are you sure you want to delete this milestone?');
     if (!confirmed) return;
     const skill = skills.find(s => s.id === skillId);
+    if (!skill) return;
     skill.milestones = skill.milestones.filter(m => m.id !== milestoneId);
     saveState();
     renderSkillDetail(skillId);
     showToast('Milestone deleted successfully');
-
 }
 
-// Toggle milestone
 function toggleMilestone(skillId, milestoneId) {
     const skill = skills.find(s => s.id === skillId);
-    const milestone = skill.milestones.find(m => m.id === milestoneId);
+    const milestone = skill?.milestones.find(m => m.id === milestoneId);
+    if (!skill || !milestone) return;
     milestone.completed = !milestone.completed;
     if (milestone.completed) {
         userXP += 10 * (milestone.weight || 1);
@@ -1388,6 +1152,8 @@ function toggleMilestone(skillId, milestoneId) {
             userLevel++;
             if (Notification.permission === 'granted') {
                 new Notification(`🎉 Leveled up to Level ${userLevel}!`);
+            } else {
+                showToast(`🎉 Leveled up to Level ${userLevel}!`);
             }
         }
     }
@@ -1396,12 +1162,15 @@ function toggleMilestone(skillId, milestoneId) {
     renderSkillDetail(skillId);
 }
 
-// Mark today as practiced
 function markTodayPracticed(skillId) {
     const skill = skills.find(s => s.id === skillId);
+    if (!skill) return;
     const today = dayjs().format('YYYY-MM-DD');
     if (!skill.practiceHistory) skill.practiceHistory = [];
-    if (skill.practiceHistory.includes(today)) return;
+    if (skill.practiceHistory.includes(today)) {
+        showToast('Today is already marked as practiced');
+        return;
+    }
     skill.practiceHistory.push(today);
     const yesterday = dayjs().subtract(1, 'day').format('YYYY-MM-DD');
     if (lastActivityDate === yesterday) {
@@ -1411,7 +1180,7 @@ function markTodayPracticed(skillId) {
         }
     } else if (lastActivityDate !== today) {
         streak = 1;
-        if (Notification.permission === 'granted' && lastActivityDate) {
+        if (lastActivityDate && Notification.permission === 'granted') {
             new Notification('😢 Streak broken! Start a new one today.');
         }
     }
@@ -1420,14 +1189,14 @@ function markTodayPracticed(skillId) {
     renderSkillDetail(skillId);
 }
 
-// Add reflection
 function addReflection(skillId) {
-    const text = document.getElementById('new-reflection').value.trim();
+    const text = document.getElementById('new-reflection')?.value.trim();
     if (!text) {
-        showToast('Reflection cannot be empty');
+        showToast('Reflection cannot be empty', 'error');
         return;
     }
     const skill = skills.find(s => s.id === skillId);
+    if (!skill) return;
     skill.reflections.push({
         id: uuidv4(),
         text,
@@ -1438,71 +1207,63 @@ function addReflection(skillId) {
     renderSkillDetail(skillId);
 }
 
-// Edit reflection
 function editReflection(skillId, reflectionId) {
     const skill = skills.find(s => s.id === skillId);
-    const reflection = skill.reflections.find(r => r.id === reflectionId);
+    const reflection = skill?.reflections.find(r => r.id === reflectionId);
+    if (!reflection) return;
     const newText = prompt('Edit reflection:', reflection.text);
-    if (newText && newText.trim()) {
+    if (newText?.trim()) {
         reflection.text = newText.trim();
         saveState();
         renderSkillDetail(skillId);
     }
 }
 
-// Delete reflection
 async function deleteReflection(skillId, reflectionId) {
     const confirmed = await showToastConfirm('Are you sure you want to delete this reflection?');
     if (!confirmed) return;
     const skill = skills.find(s => s.id === skillId);
+    if (!skill) return;
     skill.reflections = skill.reflections.filter(r => r.id !== reflectionId);
     saveState();
     renderSkillDetail(skillId);
     showToast('Reflection deleted successfully');
-
 }
 
-// Share skill card
 let currentShareData = { name: '', progress: 0, image: null };
 
 function shareSkillCard(skillId) {
     const skill = skills.find(s => s.id === skillId);
     const card = document.getElementById(`skill-card-${skillId}`);
     if (!skill || !card) return;
-
     const progress = calculateProgress(skill);
     const message = `I’ve made ${progress}% progress on ${skill.name}! #MomentumApp`;
-
     html2canvas(card).then(canvas => {
         const imgData = canvas.toDataURL('image/png');
-        currentShareData = {
-            name: skill.name,
-            progress,
-            message,
-            image: imgData
-        };
+        currentShareData = { name: skill.name, progress, message, image: imgData };
         document.getElementById('share-message').innerText = message;
-        document.getElementById('share-modal').classList.remove('hidden');
+        document.getElementById('share-modal')?.classList.remove('hidden');
+    }).catch(error => {
+        console.error('Error capturing skill card:', error);
+        showToast('Error preparing share', 'error');
     });
 }
 
 function closeShareModal() {
-    document.getElementById('share-modal').classList.add('hidden');
+    document.getElementById('share-modal')?.classList.add('hidden');
 }
 
 function shareTo(platform) {
     const { message } = currentShareData;
-    const url = encodeURIComponent('https://momentum.app'); // Replace with your actual site if different
+    const url = encodeURIComponent('https://momentum.app');
     let link = '';
-
     if (platform === 'twitter') {
-        link = `https://twitter.com/intent/tweet?text=${encodeURIComponent(message)}`;
+        link = `https://twitter.com/intent/tweet?text=${encodeURIComponent(message)}&url=${url}`;
     } else if (platform === 'facebook') {
         link = `https://www.facebook.com/sharer/sharer.php?u=${url}`;
     } else if (platform === 'linkedin') {
         link = `https://www.linkedin.com/sharing/share-offsite/?url=${url}&summary=${encodeURIComponent(message)}`;
     }
-
     if (link) window.open(link, '_blank');
     closeShareModal();
 }
@@ -1510,8 +1271,10 @@ function shareTo(platform) {
 function copyShareLink() {
     navigator.clipboard.writeText('https://momentum.app').then(() => {
         showToast('🔗 Link copied to clipboard');
+        closeShareModal();
+    }).catch(() => {
+        showToast('Error copying link', 'error');
     });
-    closeShareModal();
 }
 
 function downloadCardImage() {
@@ -1521,8 +1284,6 @@ function downloadCardImage() {
     link.click();
 }
 
-
-// Export data as JSON or CSV
 function exportData(format) {
     let data, filename, type;
     if (format === 'json') {
@@ -1532,7 +1293,7 @@ function exportData(format) {
     } else {
         let csv = 'ID,Name,Category,Tags,Milestones,Reflections,PracticeDays\n';
         skills.forEach(skill => {
-            csv += `"${skill.id}","${skill.name.replace(/"/g, '""')}","${skill.category || 'Uncategorized'}","${skill.tags ? skill.tags.join(';') : ''}",${skill.milestones.length},${skill.reflections.length},${skill.practiceHistory ? skill.practiceHistory.length : 0}\n`;
+            csv += `"${skill.id}","${skill.name.replace(/"/g, '""')}","${skill.category || 'Uncategorized'}","${skill.tags?.join(';') || ''}",${skill.milestones.length},${skill.reflections.length},${skill.practiceHistory?.length || 0}\n`;
         });
         data = csv;
         filename = 'momentum-skills.csv';
@@ -1547,43 +1308,59 @@ function exportData(format) {
     URL.revokeObjectURL(url);
 }
 
-// View skill
 function viewSkill(skillId) {
     renderSkillDetail(skillId);
 }
 
-// Toggle dark mode
+function toggleSkillView() {
+    const currentView = localStorage.getItem('skillView') || 'grid';
+    localStorage.setItem('skillView', currentView === 'grid' ? 'list' : 'grid');
+    renderDashboard();
+}
+
 function toggleDarkMode() {
     darkMode = !darkMode;
     document.body.classList.toggle('dark');
-    // Update icon class
     const iconBtn = document.getElementById('dark-mode-toggle');
     if (iconBtn) {
         iconBtn.className = `fas ${darkMode ? 'fa-sun' : 'fa-moon'} text-gray-600 dark:text-gray-300`;
     }
-
-    // Update text button (if you want to show emoji or mode label)
-    const textBtn = document.querySelector('button[onclick*="toggleDarkMode(); toggleSidebar()"]');
+    const textBtn = document.querySelector('button[onclick*="toggleDarkMode"]');
     if (textBtn) {
         textBtn.innerHTML = darkMode ? '☀️ Toggle Light Mode' : '🌙 Toggle Dark Mode';
     }
-
     saveState();
 }
 
-// Feedback and Help functions
+function openStyledModeModal() {
+    document.getElementById('styled-mode-modal')?.classList.remove('hidden');
+}
+
+function closeStyledModeModal() {
+    document.getElementById('styled-mode-modal')?.classList.add('hidden');
+    document.getElementById('styled-mode-code').value = '';
+}
+
+function openLoginModal() {
+    document.getElementById('login-modal')?.classList.remove('hidden');
+}
+
+function closeLoginModal() {
+    document.getElementById('login-modal')?.classList.add('hidden');
+}
+
 function openFeedback() {
-    document.getElementById('feedback-modal').classList.remove('hidden');
+    document.getElementById('feedback-modal')?.classList.remove('hidden');
 }
 
 function closeFeedback() {
-    document.getElementById('feedback-modal').classList.add('hidden');
+    document.getElementById('feedback-modal')?.classList.add('hidden');
 }
 
 function submitFeedback() {
-    const text = document.getElementById('feedback-text').value.trim();
+    const text = document.getElementById('feedback-text')?.value.trim();
     if (!text) {
-        showToast('Please enter some feedback');
+        showToast('Please enter some feedback', 'error');
         return;
     }
     showToast('Thank you for your feedback!');
@@ -1591,48 +1368,43 @@ function submitFeedback() {
 }
 
 function openHelp() {
-    document.getElementById('help-modal').classList.remove('hidden');
+    document.getElementById('help-modal')?.classList.remove('hidden');
 }
 
 function closeHelp() {
-    document.getElementById('help-modal').classList.add('hidden');
+    document.getElementById('help-modal')?.classList.add('hidden');
 }
 
-// Set date-fns locale globally
-window.dateFnsLocaleEnUS = window.date && window.date.fns.locale.enUS || null;
-
-// Initial render
-window.onload = () => {
+window.onload = async () => {
     if (Notification.permission !== 'granted') {
         Notification.requestPermission();
     }
     if (darkMode) {
         document.body.classList.add('dark');
-        document.getElementById('dark-mode-toggle').className = 'fas fa-sun';
+        const iconBtn = document.getElementById('dark-mode-toggle');
+        if (iconBtn) iconBtn.className = 'fas fa-sun text-gray-600 dark:text-gray-300';
     }
-    // Attach FAB button event listener
-    const fabButton = document.getElementById('fab');
-    if (fabButton) {
-        fabButton.addEventListener('click', openAddSkillModal);
-    } else {
-        console.warn('FAB button not found');
+    document.getElementById('fab')?.addEventListener('click', openAddSkillModal);
+    if (styledToSellMode) {
+        document.body.classList.add('styled-mode');
+    }
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+    if (authUser) {
+        user = authUser;
+        await syncUserData();
     }
     if (!localStorage.getItem('hasOnboarded')) {
-        document.getElementById('onboarding-modal').classList.remove('hidden');
+        document.getElementById('onboarding-modal')?.classList.remove('hidden');
     }
-
     renderDashboard();
 };
 
-// if ('serviceWorker' in navigator) {
-//     window.addEventListener('load', () => {
-//         navigator.serviceWorker.register('/service-worker.js')
-//             .then(reg => console.log('[PWA] Service Worker registered', reg))
-//             .catch(err => console.error('[PWA] Registration failed', err));
-//     });
-// }
+if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/service-worker.js')
+        .then(reg => console.log('[PWA] Service Worker registered', reg))
+        .catch(err => console.error('[PWA] Registration failed', err));
+}
 
 if (window.matchMedia('(display-mode: standalone)').matches) {
     document.body.classList.add('standalone');
 }
-
