@@ -15,13 +15,15 @@ const supabase = SUPABASE_URL && SUPABASE_KEY ? createClient(SUPABASE_URL, SUPAB
 
 let skills = JSON.parse(localStorage.getItem('skills')) || [];
 let currentSkillId = null;
-let darkMode = localStorage.getItem('darkMode') === 'true';
+let darkMode = localStorage.getItem('darkMode') === 'false';
 let userXP = parseInt(localStorage.getItem('userXP')) || 0;
 let userLevel = parseInt(localStorage.getItem('userLevel')) || 1;
 let streak = parseInt(localStorage.getItem('streak')) || 0;
 let lastActivityDate = localStorage.getItem('lastActivityDate') || null;
 let progressChart = null; // Store chart instance locally
 let styledLogs = JSON.parse(localStorage.getItem('styledLogs')) || [];
+let styledToSellMode = localStorage.getItem('styledToSellMode') === 'true';
+let user = null;
 
 // Save to localStorage
 function saveState() {
