@@ -25,8 +25,16 @@ let styledLogs = JSON.parse(localStorage.getItem('styledLogs')) || [];
 let styledToSellMode = localStorage.getItem('styledToSellMode') === 'true';
 let user = null;
 
-// Save to localStorage
-function saveState() {
+// Predefined Styled to Sell goals
+const styledGoals = [
+    { title: "Post a content carousel", category: "Visibility" },
+    { title: "Promote my offer", category: "Sales" },
+    { title: "Share a client win", category: "Credibility" },
+    { title: "Post a behind-the-scenes", category: "Connection" }
+];
+
+// Save to localStorage and optionally sync with Supabase
+async function saveState() {
     localStorage.setItem('skills', JSON.stringify(skills));
     localStorage.setItem('userXP', userXP);
     localStorage.setItem('userLevel', userLevel);
