@@ -8,169 +8,36 @@ function uuidv4() {
     });
 }
 
-// Supabase client initialization
-const SUPABASE_URL = 'https://uspfmxwzfjludzgofzdk.supabase.co';
-const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVzcGZteHd6ZmpsdWR6Z29memRrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTExMTIyODEsImV4cCI6MjA2NjY4ODI4MX0.qqZ1bMUq9TTWALecR5I4We-69vJOczId2tEXLFuQLVk';
-const supabase = SUPABASE_URL && SUPABASE_KEY ? createClient(SUPABASE_URL, SUPABASE_KEY) : null;
-
 let skills = JSON.parse(localStorage.getItem('skills')) || [];
-let styledLogs = JSON.parse(localStorage.getItem('styledLogs')) || [];
 let currentSkillId = null;
 let darkMode = localStorage.getItem('darkMode') === 'true';
-let styledToSellMode = localStorage.getItem('styledToSellMode') === 'true';
 let userXP = parseInt(localStorage.getItem('userXP')) || 0;
 let userLevel = parseInt(localStorage.getItem('userLevel')) || 1;
 let streak = parseInt(localStorage.getItem('streak')) || 0;
 let lastActivityDate = localStorage.getItem('lastActivityDate') || null;
-let progressChart = null;
-let user = null;
+let progressChart = null; // Store chart instance locally
 
-// Predefined Styled to Sell goals
-const styledGoals = [
-    { title: "Post a content carousel", category: "Visibility" },
-    { title: "Promote my offer", category: "Sales" },
-    { title: "Share a client win", category: "Credibility" },
-    { title: "Post a behind-the-scenes", category: "Connection" }
-];
-
-// Save to localStorage and optionally sync with Supabase
-async function saveState() {
+// Save to localStorage
+function saveState() {
     localStorage.setItem('skills', JSON.stringify(skills));
-    localStorage.setItem('styledLogs', JSON.stringify(styledLogs));
     localStorage.setItem('userXP', userXP);
     localStorage.setItem('userLevel', userLevel);
     localStorage.setItem('streak', streak);
     localStorage.setItem('lastActivityDate', lastActivityDate);
     localStorage.setItem('darkMode', darkMode);
-    localStorage.setItem('styledToSellMode', styledToSellMode);
-    
-    if (user && supabase) {
-        await supabase.from('user_data').upsert({
-            user_id: user.id,
-            skills,
-            styled_logs: styledLogs,
-            user_xp: userXP,
-            user_level: userLevel,
-            streak,
-            last_activity_date: lastActivityDate,
-            dark_mode: darkMode,
-            styled_to_sell_mode: styledToSellMode
-        });
-    }
 }
 
-// Supabase auth functions
-async function loginWithEmail(email, password) {
-    if (!supabase) return showToast('Supabase not configured');
-    
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) {
-        showToast('Login failed: ' + error.message);
-        return;
-    }
-    user = data.user;
-    await syncUserData();
-    showToast('Logged in successfully');
-    renderDashboard();
-}
-
-async function loginWithMagicLink(email) {
-    if (!supabase) return showToast('Supabase not configured');
-    
-    const { error } = await supabase.auth.signInWithOtp({ email });
-    if (error) {
-        showToast('Error sending magic link: ' + error.message);
-        return;
-    }
-    showToast('Magic link sent to your email');
-}
-
-async function logout() {
-    if (supabase) {
-        await supabase.auth.signOut();
-        user = null;
-        showToast('Logged out successfully');
-    }
-    renderDashboard();
-}
-
-async function syncUserData() {
-    if (!user || !supabase) return;
-    
-    const { data, error } = await supabase
-        .from('user_data')
-        .select('*')
-        .eq('user_id', user.id)
-        .single();
-    
-    if (data) {
-        skills = data.skills || skills;
-        styledLogs = data.styled_logs || styledLogs;
-        userXP = data.user_xp || userXP;
-        userLevel = data.user_level || userLevel;
-        streak = data.streak || streak;
-        lastActivityDate = data.last_activity_date || lastActivityDate;
-        darkMode = data.dark_mode || darkMode;
-        styledToSellMode = data.styled_to_sell_mode || styledToSellMode;
-        saveState();
-        
-        if (user.user_metadata.styled_to_sell_unlocked) {
-            styledToSellMode = true;
-            localStorage.setItem('styledToSellMode', 'true');
-            document.body.classList.add('styled-mode');
-        }
-    }
-}
-
-// Styled to Sell Mode unlock
-function unlockStyledMode() {
-    const codeInput = document.getElementById('styled-mode-code');
-    const code = codeInput.value.trim();
-    
-    if (code === 'SELLSTYLE23') {
-        styledToSellMode = true;
-        localStorage.setItem('styledToSellMode', 'true');
-        document.body.classList.add('styled-mode');
-        document.getElementById('styled-mode-modal').classList.add('hidden');
-        showToast('Styled to Sell Mode unlocked!');
-        
-        // Add predefined goals if not already added
-        styledGoals.forEach(goal => {
-            if (!skills.some(s => s.name === goal.title)) {
-                skills.push({
-                    id: uuidv4(),
-                    name: goal.title,
-                    category: goal.category,
-                    tags: ['StyledToSell'],
-                    milestones: [],
-                    reflections: [],
-                    progressLog: [],
-                    practiceHistory: [],
-                    weeklyPractice: {},
-                    createdAt: new Date().toISOString()
-                });
-            }
-        });
-        saveState();
-        renderDashboard();
-    } else {
-        showToast('Invalid code');
-    }
-}
-
-// Toggle sidebar
 function toggleSidebar() {
     const sidebar = document.getElementById('mobile-sidebar');
     const isOpen = !sidebar.classList.contains('-translate-x-full');
 
     if (isOpen) {
         sidebar.classList.add('-translate-x-full');
-        document.body.classList.remove('sidebar-open');
     } else {
         sidebar.classList.remove('-translate-x-full');
-        document.body.classList.add('sidebar-open');
     }
 }
+
 
 // Show/Hide loading overlay
 function showLoading() {
@@ -227,6 +94,7 @@ function showToastConfirm(message) {
         };
     });
 }
+
 
 function skipOnboarding() {
     localStorage.setItem('hasOnboarded', 'true');
@@ -295,6 +163,7 @@ function onboardingNext() {
 
         renderDashboard();
     }
+
 }
 
 function onboardingPrev() {
@@ -323,6 +192,9 @@ function onboardingShowStep(step) {
 
     document.getElementById('onboarding-back-btn').classList.toggle('hidden', step === 1);
 }
+
+
+
 
 // Calculate progress percentage with weights
 function calculateProgress(skill) {
@@ -362,26 +234,13 @@ function getBadges(skill) {
     const oneWeekAgo = dayjs().subtract(7, 'day');
     const recentReflections = skill.reflections.filter(r => dayjs(r.date).isAfter(oneWeekAgo)).length;
     if (recentReflections >= 3) badges.push('📝 Reflective Thinker');
-    
-    // Styled to Sell badges
-    const styledGoalsCount = skills.filter(s => s.tags?.includes('StyledToSell')).length;
-    if (styledGoalsCount >= 3) badges.push('🌟 Styled Starter');
-    if (new Set(styledLogs.map(l => l.date)).size >= 5) badges.push('👑 Consistent Queen');
-    if (styledLogs.filter(l => l.post.toLowerCase().includes('sales')).length >= 3) badges.push('🚀 Launch Ready');
-    
     return badges;
 }
 
-// Save unlocked badge IDs to localStorage
+// 💾 Save unlocked badge IDs to localStorage
 function saveUnlockedBadges(badges) {
     const unlockedIds = badges.filter(b => b.unlocked).map(b => b.id);
     localStorage.setItem('unlockedBadges', JSON.stringify(unlockedIds));
-    if (user && supabase) {
-        supabase.from('user_data').upsert({
-            user_id: user.id,
-            unlocked_badges: unlockedIds
-        });
-    }
 }
 
 function getUnlockedBadgeIds() {
@@ -447,33 +306,6 @@ function openBadgeGallery() {
             unlocked: skills.some(s => (s.reflections || []).filter(r => dayjs(r.date).isAfter(dayjs().subtract(7, 'day'))).length >= 3),
             tier: 'Silver',
             progress: Math.max(...skills.map(s => (s.reflections || []).filter(r => dayjs(r.date).isAfter(dayjs().subtract(7, 'day'))).length)) + '/3 reflections'
-        },
-        {
-            id: 'styledStarter',
-            icon: '🌟',
-            name: 'Styled Starter',
-            description: 'Add 3 Styled to Sell goals.',
-            unlocked: skills.filter(s => s.tags?.includes('StyledToSell')).length >= 3,
-            tier: 'Bronze',
-            progress: `${skills.filter(s => s.tags?.includes('StyledToSell')).length}/3 goals`
-        },
-        {
-            id: 'consistentQueen',
-            icon: '👑',
-            name: 'Consistent Queen',
-            description: 'Log posts for 5 different days.',
-            unlocked: new Set(styledLogs.map(l => l.date)).size >= 5,
-            tier: 'Silver',
-            progress: `${new Set(styledLogs.map(l => l.date)).size}/5 days`
-        },
-        {
-            id: 'launchReady',
-            icon: '🚀',
-            name: 'Launch Ready',
-            description: 'Complete 3 sales-focused tasks.',
-            unlocked: styledLogs.filter(l => l.post.toLowerCase().includes('sales')).length >= 3,
-            tier: 'Gold',
-            progress: `${styledLogs.filter(l => l.post.toLowerCase().includes('sales')).length}/3 tasks`
         }
     ];
 
@@ -485,25 +317,26 @@ function openBadgeGallery() {
         const tierColor = b.tier === 'Gold' ? 'text-yellow-500' : b.tier === 'Silver' ? 'text-gray-400' : 'text-orange-500';
         const tooltip = `${b.description}\nProgress: ${b.progress}`;
         container.innerHTML += `
-            <div class="p-4 rounded-lg shadow-sm border ${style}" title="${tooltip}">
-                <h4 class="text-lg font-semibold flex items-center gap-2 ${tierColor}">
-                    <span class="text-2xl">${b.icon}</span> ${b.name} (${b.tier})
-                </h4>
-                <p class="text-sm text-gray-600 dark:text-gray-300 mt-1">${b.description}</p>
-                <p class="text-xs mt-2 font-bold ${b.unlocked ? 'text-green-600' : 'text-gray-500'}">
-                    ${b.unlocked ? 'Unlocked' : 'Locked'} • ${b.progress}
-                </p>
-            </div>`;
+      <div class="p-4 rounded-lg shadow-sm border ${style}" title="${tooltip}">
+        <h4 class="text-lg font-semibold flex items-center gap-2 ${tierColor}">
+          <span class="text-2xl">${b.icon}</span> ${b.name} (${b.tier})
+        </h4>
+        <p class="text-sm text-gray-600 dark:text-gray-300 mt-1">${b.description}</p>
+        <p class="text-xs mt-2 font-bold ${b.unlocked ? 'text-green-600' : 'text-gray-500'}">
+          ${b.unlocked ? 'Unlocked' : 'Locked'} • ${b.progress}
+        </p>
+      </div>`;
     });
 
     modal.classList.remove('hidden');
 }
 
+
 function closeBadgeGallery() {
     document.getElementById('badge-gallery-modal').classList.add('hidden');
 }
 
-// Check and notify new badges
+// 🔔 Check and notify new badges on dashboard render
 function checkNewBadges() {
     const previous = new Set(getUnlockedBadgeIds());
 
@@ -537,21 +370,6 @@ function checkNewBadges() {
             id: 'reflective3',
             unlocked: skills.some(s => (s.reflections || []).filter(r => dayjs(r.date).isAfter(dayjs().subtract(7, 'day'))).length >= 3),
             label: '📝 Reflective Thinker'
-        },
-        {
-            id: 'styledStarter',
-            unlocked: skills.filter(s => s.tags?.includes('StyledToSell')).length >= 3,
-            label: '🌟 Styled Starter'
-        },
-        {
-            id: 'consistentQueen',
-            unlocked: new Set(styledLogs.map(l => l.date)).size >= 5,
-            label: '👑 Consistent Queen'
-        },
-        {
-            id: 'launchReady',
-            unlocked: styledLogs.filter(l => l.post.toLowerCase().includes('sales')).length >= 3,
-            label: '🚀 Launch Ready'
         }
     ];
 
@@ -569,6 +387,7 @@ function checkNewBadges() {
     }
 }
 
+
 // Render empty state
 function renderEmptyState() {
     const main = document.getElementById('main-content');
@@ -584,7 +403,7 @@ function renderEmptyState() {
     hideLoading();
 }
 
-// Render Dashboard with Styled to Sell section
+// Render Dashboard with category, tag filter, search, and sorting
 function renderDashboard(filter = null, type = 'category', sort = 'alphabetical', searchQuery = '') {
     showLoading();
     setTimeout(() => {
@@ -592,7 +411,7 @@ function renderDashboard(filter = null, type = 'category', sort = 'alphabetical'
         currentSkillId = null;
 
         const main = document.getElementById('main-content');
-        if (!skills.length && !styledToSellMode) {
+        if (!skills.length) {
             renderEmptyState();
             hideLoading();
             return;
@@ -602,19 +421,10 @@ function renderDashboard(filter = null, type = 'category', sort = 'alphabetical'
         const sortedSkills = sortSkills(filteredSkills, sort);
 
         main.innerHTML = `
-            ${styledToSellMode ? `
-                <div id="styled-mode-banner" class="bg-pink-500 text-white p-4 mb-4 rounded-lg flex justify-between items-center">
-                    <div>
-                        <strong>✅ Styled to Sell Mode Active</strong>
-                        <p>Let’s build visibility, consistency, and confidence.</p>
-                    </div>
-                    <button onclick="dismissStyledBanner()" class="bg-pink-700 px-3 py-1 rounded">Dismiss</button>
-                </div>
-            ` : ''}
             ${renderTopBar(filter, type, sort, searchQuery)}
             ${renderStats()}
-            ${styledToSellMode ? renderStyledTracker() : ''}
-            ${renderSkillCards(sortedSkills)}
+           ${renderSkillCards(sortedSkills)}
+
         `;
 
         attachSearchInput(filter, type, sort);
@@ -622,92 +432,6 @@ function renderDashboard(filter = null, type = 'category', sort = 'alphabetical'
         hideLoading();
     }, 200);
 }
-
-function dismissStyledBanner() {
-    document.getElementById('styled-mode-banner')?.classList.add('hidden');
-}
-
-function renderStyledTracker() {
-    const styledSkills = skills.filter(s => s.tags?.includes('StyledToSell'));
-    return `
-        <div class="mb-6">
-            <h2 class="text-xl font-semibold dark:text-white">Styled Tracker</h2>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-                ${styledSkills.map(skill => `
-                    <div class="bg-white dark:bg-gray-700 p-4 rounded-lg shadow-md">
-                        <h3 class="text-lg font-semibold dark:text-white">${skill.name}</h3>
-                        <p class="text-sm text-gray-600 dark:text-gray-400">${skill.category}</p>
-                        <p class="text-sm mt-2">${calculateProgress(skill)}% complete</p>
-                        <button onclick="viewSkill('${skill.id}')" class="bg-pink-500 text-white px-3 py-1 rounded mt-2 hover:bg-pink-600">View</button>
-                    </div>
-                `).join('')}
-            </div>
-            <div class="mt-4">
-                <h3 class="text-lg font-semibold dark:text-white">Daily Post Log</h3>
-                <div class="flex flex-col gap-2 mt-2">
-                    <input id="post-today" type="text" placeholder="What did I post today?" class="p-2 rounded-lg border dark:bg-gray-900 dark:text-white" aria-label="Post description">
-                    <input id="post-performance" type="text" placeholder="How did it perform?" class="p-2 rounded-lg border dark:bg-gray-900 dark:text-white" aria-label="Post performance">
-                    <textarea id="post-learn" placeholder="What did I learn?" class="p-2 rounded-lg border dark:bg-gray-900 dark:text-white h-24" aria-label="Post learnings"></textarea>
-                    <div class="flex gap-2">
-                        <button onclick="addStyledLog()" class="bg-pink-500 text-white px-4 py-2 rounded-lg hover:bg-pink-600">Add Log</button>
-                        <button onclick="downloadStyledLogs()" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700">Download Logs</button>
-                    </div>
-                </div>
-                <div class="mt-4">
-                    ${styledLogs.slice().reverse().map(log => `
-                        <div class="p-4 border-b dark:border-gray-600">
-                            <p class="text-sm text-gray-500 dark:text-gray-400">${dayjs(log.date).format('MMM D, YYYY')}</p>
-                            <p class="dark:text-white"><strong>Post:</strong> ${log.post}</p>
-                            <p class="dark:text-white"><strong>Performance:</strong> ${log.performance}</p>
-                            <p class="dark:text-white"><strong>Learned:</strong> ${log.learn}</p>
-                        </div>
-                    `).join('')}
-                </div>
-            </div>
-        </div>
-    `;
-}
-
-function addStyledLog() {
-    const post = document.getElementById('post-today').value.trim();
-    const performance = document.getElementById('post-performance').value.trim();
-    const learn = document.getElementById('post-learn').value.trim();
-    
-    if (!post || !performance || !learn) {
-        showToast('Please fill all fields');
-        return;
-    }
-    
-    styledLogs.push({
-        id: uuidv4(),
-        post,
-        performance,
-        learn,
-        date: new Date().toISOString()
-    });
-    
-    document.getElementById('post-today').value = '';
-    document.getElementById('post-performance').value = '';
-    document.getElementById('post-learn').value = '';
-    
-    saveState();
-    renderDashboard();
-}
-
-function downloadStyledLogs() {
-    let csv = 'Date,Post,Performance,Learned\n';
-    styledLogs.forEach(log => {
-        csv += `"${dayjs(log.date).format('YYYY-MM-DD')}","${log.post.replace(/"/g, '""')}","${log.performance.replace(/"/g, '""')}","${log.learn.replace(/"/g, '""')}"\n`;
-    });
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = 'styled_logs.csv';
-    link.click();
-    URL.revokeObjectURL(url);
-}
-
 function getFilteredSkills(filter, type, searchQuery) {
     let result = [...skills];
 
@@ -759,17 +483,17 @@ function renderTopBar(filter, type, sort, searchQuery) {
                 />
                 <div class="flex flex-col md:flex-row gap-3 w-full md:w-auto">
                     ${renderFilterDropdown(
-                        'category',
-                        'Category',
-                        [...new Set(skills.map(s => s.category || 'Uncategorized'))],
-                        filter, type, sort, searchQuery
-                    )}
+        'category',
+        'Category',
+        [...new Set(skills.map(s => s.category || 'Uncategorized'))],
+        filter, type, sort, searchQuery
+    )}
                     ${renderFilterDropdown(
-                        'tag',
-                        'Tag',
-                        [...new Set(skills.flatMap(s => s.tags || []))],
-                        filter, type, sort, searchQuery
-                    )}
+        'tag',
+        'Tag',
+        [...new Set(skills.flatMap(s => s.tags || []))],
+        filter, type, sort, searchQuery
+    )}
                 </div>
                 <div class="flex flex-wrap gap-2 w-full md:w-auto">
                     <button onclick="exportData('json')" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 w-full md:w-auto">
@@ -781,48 +505,19 @@ function renderTopBar(filter, type, sort, searchQuery) {
                     <button onclick="toggleSkillView()" class="bg-gray-200 dark:bg-gray-800 dark:text-white px-4 py-2 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-700 w-full md:w-auto">
                         ${icon}
                     </button>
-                    ${!styledToSellMode ? `
-                        <button onclick="openStyledModeModal()" class="bg-pink-500 text-white px-4 py-2 rounded-lg hover:bg-pink-600 w-full md:w-auto">
-                            Unlock Styled Mode
-                        </button>
-                    ` : ''}
-                    ${!user ? `
-                        <button onclick="openLoginModal()" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 w-full md:w-auto">
-                            Login
-                        </button>
-                    ` : `
-                        <button onclick="logout()" class="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 w-full md:w-auto">
-                            Logout
-                        </button>
-                    `}
                 </div>
             </div>
         </div>
     `;
 }
 
-function openStyledModeModal() {
-    document.getElementById('styled-mode-modal').classList.remove('hidden');
-}
-
-function closeStyledModeModal() {
-    document.getElementById('styled-mode-modal').classList.add('hidden');
-}
-
-function openLoginModal() {
-    document.getElementById('login-modal').classList.remove('hidden');
-}
-
-function closeLoginModal() {
-    document.getElementById('login-modal').classList.add('hidden');
-}
-
 function toggleSkillView() {
     const currentView = localStorage.getItem('skillView') || 'grid';
     const newView = currentView === 'grid' ? 'list' : 'grid';
     localStorage.setItem('skillView', newView);
-    renderDashboard();
+    renderDashboard(); // re-render with the new view
 }
+
 
 function renderFilterDropdown(typeKey, label, options, filter, type, sort, searchQuery) {
     return `
@@ -875,7 +570,7 @@ function renderSkillCardGrid(skill) {
             <div class="relative w-20 h-20 sm:w-24 sm:h-24 mx-auto my-4">
                 <svg class="w-full h-full" viewBox="0 0 36 36">
                     <circle cx="18" cy="18" r="15.9155" fill="none" stroke="#e5e7eb" stroke-width="2" />
-                    <circle class="progress-ring" cx="18" cy="18" r="15.9155" fill="none" stroke="${styledToSellMode && skill.tags?.includes('StyledToSell') ? '#ec4899' : '#3b82f6'}" stroke-width="2"
+                    <circle class="progress-ring" cx="18" cy="18" r="15.9155" fill="none" stroke="#3b82f6" stroke-width="2"
                         stroke-dasharray="${progress}, 100" transform="rotate(-90 18 18)" />
                     <text x="20" y="20" text-anchor="middle" fill="currentColor" class="text-sm dark:text-white">${progress}%</text>
                 </svg>
@@ -895,6 +590,7 @@ function renderSkillCardGrid(skill) {
         </div>
     `;
 }
+
 
 function renderSkillCardList(skill) {
     const progress = calculateProgress(skill);
@@ -917,6 +613,8 @@ function renderSkillCardList(skill) {
         </div>
     `;
 }
+
+
 
 function attachSearchInput(filter, type, sort) {
     const searchInput = document.getElementById('search-skills');
@@ -941,6 +639,7 @@ function updateCategoryDropdown() {
     }
 }
 
+
 // Set random reflection prompt
 function setRandomPrompt() {
     const prompts = [
@@ -961,7 +660,7 @@ function renderSkillDetail(skillId) {
         hideLoading();
         return;
     }
-    currentSkillId = skillId;
+    currentSkillId = skillId; // Fixed: Use assignment, not comparison
     const main = document.getElementById('main-content');
     const prompts = [
         'What was hard today?',
@@ -1048,11 +747,11 @@ function renderSkillDetail(skillId) {
         </div>
     `;
     renderChart(skillId, 'day');
-    renderHeatmap(skillId);
+    renderHeatmap(skillId); // Fixed: Pass skillId correctly
     hideLoading();
 }
 
-// Render Chart.js chart
+// Render Chart.js chart with daily/weekly toggle
 function renderChart(skillId, unit) {
     const skill = skills.find(s => s.id === skillId);
     if (!skill || !skill.progressLog) {
@@ -1066,6 +765,7 @@ function renderChart(skillId, unit) {
         return;
     }
 
+    // Destroy existing chart if it exists
     try {
         if (progressChart && typeof progressChart.destroy === 'function') {
             progressChart.destroy();
@@ -1075,11 +775,12 @@ function renderChart(skillId, unit) {
         console.warn('Error destroying existing chart:', e);
     }
 
+    // Clear canvas to prevent reuse issues
     ctx.getContext('2d').clearRect(0, 0, ctx.width, ctx.height);
 
     try {
         const progressData = skill.progressLog.map(log => ({
-            x: dayjs(log.date).toDate(),
+            x: dayjs(log.date).toDate(), // Convert dayjs to native JS Date
             y: Number(log.progress) || 0
         }));
 
@@ -1089,8 +790,8 @@ function renderChart(skillId, unit) {
                 datasets: [{
                     label: `${skill.name} Progress`,
                     data: progressData,
-                    borderColor: styledToSellMode && skill.tags?.includes('StyledToSell') ? '#ec4899' : '#3b82f6',
-                    backgroundColor: styledToSellMode && skill.tags?.includes('StyledToSell') ? 'rgba(236, 72, 153, 0.2)' : 'rgba(59, 130, 246, 0.2)',
+                    borderColor: '#3b82f6',
+                    backgroundColor: 'rgba(59, 130, 246, 0.2)',
                     fill: true,
                     tension: 0.5,
                 }]
@@ -1115,7 +816,7 @@ function renderChart(skillId, unit) {
                         },
                         adapters: {
                             date: {
-                                locale: window.dateFnsLocaleEnUS || null
+                                locale: window.dateFnsLocaleEnUS || null // Use global locale
                             }
                         }
                     },
@@ -1146,10 +847,12 @@ function exportChart(skillId) {
     try {
         html2canvas(canvas).then(canvas => {
             const imgData = canvas.toDataURL('image/png');
+            // PNG export
             const link = document.createElement('a');
             link.download = `${skill.name}-progress.png`;
             link.href = imgData;
             link.click();
+            // PDF export
             const pdf = new jsPDF();
             pdf.addImage(imgData, 'PNG', 10, 10, 190, 100);
             pdf.save(`${skill.name}-progress.pdf`);
@@ -1257,6 +960,7 @@ function saveEditedSkill() {
     closeEditSkillModal();
 }
 
+
 // Delete skill
 async function deleteSkill(skillId) {
     const confirmed = await showToastConfirm('Are you sure you want to delete this skill?');
@@ -1265,6 +969,7 @@ async function deleteSkill(skillId) {
     saveState();
     renderDashboard();
     showToast('Skill deleted successfully');
+
 }
 
 // Toggle practice day
@@ -1278,7 +983,7 @@ function togglePracticeDay(skillId, day) {
 
 // Add milestone
 function addMilestone(skillId) {
-    const title = document.getElementById('milestone-text').value.trim();
+    const title = document.getElementById('milestone-text').value.trim(); // Fixed: Correct ID
     const weight = Math.max(1, Math.min(10, parseInt(document.getElementById('milestone-weight').value) || 1));
     const deadline = document.getElementById('milestone-deadline').value;
     if (!title) {
@@ -1306,13 +1011,13 @@ function addMilestone(skillId) {
     }
 }
 
-// Schedule notification
+// Schedule notification with capped timeout
 function scheduleNotification(skillId, milestoneId, title, deadline) {
     const dueDate = dayjs(deadline);
     const notificationDate = dueDate.subtract(1, 'day');
     const timeUntilNotification = notificationDate.diff(dayjs());
     if (timeUntilNotification > 0) {
-        const cappedTimeout = Math.min(timeUntilNotification, 2147483647);
+        const cappedTimeout = Math.min(timeUntilNotification, 2147483647); // Max setTimeout limit
         setTimeout(() => {
             if (Notification.permission === 'granted') {
                 new Notification(`Reminder: Milestone "${title}" is due tomorrow!`);
@@ -1355,6 +1060,7 @@ async function deleteMilestone(skillId, milestoneId) {
     saveState();
     renderSkillDetail(skillId);
     showToast('Milestone deleted successfully');
+
 }
 
 // Toggle milestone
@@ -1439,6 +1145,7 @@ async function deleteReflection(skillId, reflectionId) {
     saveState();
     renderSkillDetail(skillId);
     showToast('Reflection deleted successfully');
+
 }
 
 // Share skill card
@@ -1471,7 +1178,7 @@ function closeShareModal() {
 
 function shareTo(platform) {
     const { message } = currentShareData;
-    const url = encodeURIComponent('https://momentum.app');
+    const url = encodeURIComponent('https://momentum.app'); // Replace with your actual site if different
     let link = '';
 
     if (platform === 'twitter') {
@@ -1500,23 +1207,21 @@ function downloadCardImage() {
     link.click();
 }
 
+
 // Export data as JSON or CSV
 function exportData(format) {
     let data, filename, type;
     if (format === 'json') {
-        data = JSON.stringify({ skills, styledLogs }, null, 2);
-        filename = 'momentum-data.json';
+        data = JSON.stringify(skills, null, 2);
+        filename = 'momentum-skills.json';
         type = 'application/json';
     } else {
-        let csv = 'Type,ID,Name,Category,Tags,Milestones,Reflections,PracticeDays,Post,Performance,Learned,Date\n';
+        let csv = 'ID,Name,Category,Tags,Milestones,Reflections,PracticeDays\n';
         skills.forEach(skill => {
-            csv += `"Skill","${skill.id}","${skill.name.replace(/"/g, '""')}","${skill.category || 'Uncategorized'}","${skill.tags ? skill.tags.join(';') : ''}",${skill.milestones.length},${skill.reflections.length},${skill.practiceHistory ? skill.practiceHistory.length : 0},,,,\n`;
-        });
-        styledLogs.forEach(log => {
-            csv += `"StyledLog","${log.id}",,,,"${log.post.replace(/"/g, '""')}","${log.performance.replace(/"/g, '""')}","${log.learn.replace(/"/g, '""')}","${dayjs(log.date).format('YYYY-MM-DD')}"\n`;
+            csv += `"${skill.id}","${skill.name.replace(/"/g, '""')}","${skill.category || 'Uncategorized'}","${skill.tags ? skill.tags.join(';') : ''}",${skill.milestones.length},${skill.reflections.length},${skill.practiceHistory ? skill.practiceHistory.length : 0}\n`;
         });
         data = csv;
-        filename = 'momentum-data.csv';
+        filename = 'momentum-skills.csv';
         type = 'text/csv';
     }
     const blob = new Blob([data], { type });
@@ -1537,14 +1242,18 @@ function viewSkill(skillId) {
 function toggleDarkMode() {
     darkMode = !darkMode;
     document.body.classList.toggle('dark');
+   // Update icon class
     const iconBtn = document.getElementById('dark-mode-toggle');
     if (iconBtn) {
         iconBtn.className = `fas ${darkMode ? 'fa-sun' : 'fa-moon'} text-gray-600 dark:text-gray-300`;
     }
+
+    // Update text button (if you want to show emoji or mode label)
     const textBtn = document.querySelector('button[onclick*="toggleDarkMode(); toggleSidebar()"]');
     if (textBtn) {
         textBtn.innerHTML = darkMode ? '☀️ Toggle Light Mode' : '🌙 Toggle Dark Mode';
     }
+    
     saveState();
 }
 
@@ -1579,7 +1288,7 @@ function closeHelp() {
 window.dateFnsLocaleEnUS = window.date && window.date.fns.locale.enUS || null;
 
 // Initial render
-window.onload = async () => {
+window.onload = () => {
     if (Notification.permission !== 'granted') {
         Notification.requestPermission();
     }
@@ -1587,18 +1296,7 @@ window.onload = async () => {
         document.body.classList.add('dark');
         document.getElementById('dark-mode-toggle').className = 'fas fa-sun';
     }
-    if (styledToSellMode) {
-        document.body.classList.add('styled-mode');
-    }
-    
-    if (supabase) {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session) {
-            user = session.user;
-            await syncUserData();
-        }
-    }
-    
+    // Attach FAB button event listener
     const fabButton = document.getElementById('fab');
     if (fabButton) {
         fabButton.addEventListener('click', openAddSkillModal);
@@ -1623,3 +1321,4 @@ if ('serviceWorker' in navigator) {
 if (window.matchMedia('(display-mode: standalone)').matches) {
     document.body.classList.add('standalone');
 }
+
