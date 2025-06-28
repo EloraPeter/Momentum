@@ -267,6 +267,33 @@
         </div>
     </div>
 
+    <!-- Styled Mode Unlock Modal -->
+    <div id="styled-mode-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden">
+        <div class="bg-white dark:bg-gray-700 p-6 rounded-lg shadow-lg w-full max-w-md">
+            <h2 class="text-xl font-semibold dark:text-white mb-4">Unlock Styled to Sell Mode</h2>
+            <input id="styled-mode-code" type="text" placeholder="Enter code (e.g., SELLSTYLE23)" class="w-full p-2 mb-4 rounded-lg border dark:bg-gray-900 dark:text-white" aria-label="Styled mode code">
+            <div class="flex justify-end gap-2">
+                <button onclick="closeStyledModeModal()" class="bg-gray-200 dark:bg-gray-600 px-4 py-2 rounded-lg">Cancel</button>
+                <button onclick="unlockStyledMode()" class="bg-pink-500 text-white px-4 py-2 rounded-lg hover:bg-pink-600">Unlock</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Login Modal -->
+    <div id="login-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden">
+        <div class="bg-white dark:bg-gray-700 p-6 rounded-lg shadow-lg w-full max-w-md">
+            <h2 class="text-xl font-semibold dark:text-white mb-4">Login to Sync Data</h2>
+            <input id="login-email" type="email" placeholder="Email" class="w-full p-2 mb-2 rounded-lg border dark:bg-gray-900 dark:text-white" aria-label="Login email">
+            <input id="login-password" type="password" placeholder="Password (optional)" class="w-full p-2 mb-4 rounded-lg border dark:bg-gray-900 dark:text-white" aria-label="Login password">
+            <div class="flex justify-end gap-2">
+                <button onclick="loginWithEmail(document.getElementById('login-email').value, document.getElementById('login-password').value)" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">Login</button>
+                <button onclick="loginWithMagicLink(document.getElementById('login-email').value)" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">Magic Link</button>
+                <button onclick="closeLoginModal()" class="bg-gray-200 dark:bg-gray-600 px-4 py-2 rounded-lg">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+
     <!-- Toast Notification -->
     <div id="toast-container" class="fixed bottom-4 right-4 z-50 space-y-2"></div>
 

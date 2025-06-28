@@ -8,6 +8,11 @@ function uuidv4() {
     });
 }
 
+// Supabase client initialization
+const SUPABASE_URL = 'https://uspfmxwzfjludzgofzdk.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVzcGZteHd6ZmpsdWR6Z29memRrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTExMTIyODEsImV4cCI6MjA2NjY4ODI4MX0.qqZ1bMUq9TTWALecR5I4We-69vJOczId2tEXLFuQLVk';
+const supabase = SUPABASE_URL && SUPABASE_KEY ? createClient(SUPABASE_URL, SUPABASE_KEY) : null;
+
 let skills = JSON.parse(localStorage.getItem('skills')) || [];
 let currentSkillId = null;
 let darkMode = localStorage.getItem('darkMode') === 'true';
