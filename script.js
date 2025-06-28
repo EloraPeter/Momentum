@@ -41,6 +41,121 @@ async function saveState() {
     localStorage.setItem('streak', streak);
     localStorage.setItem('lastActivityDate', lastActivityDate);
     localStorage.setItem('darkMode', darkMode);
+    localStorage.setItem('styledLogs', JSON.stringify(styledLogs));
+    localStorage.setItem('styledToSellMode', styledToSellMode);
+
+      if (user && supabase) {
+        await supabase.from('user_data').upsert({
+            user_id: user.id,
+            skills,
+            styled_logs: styledLogs,
+            user_xp: userXP,
+            user_level: userLevel,
+            streak,
+            last_activity_date: lastActivityDate,
+            dark_mode: darkMode,
+            styled_to_sell_mode: styledToSellMode
+        });
+    }
+}
+
+// Supabase auth functions
+async function loginWithEmail(email, password) {
+    if (!supabase) return showToast('Supabase not configured');
+    
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) {
+        showToast('Login failed: ' + error.message);
+        return;
+    }
+    user = data.user;
+    await syncUserData();
+    showToast('Logged in successfully');
+    renderDashboard();
+}
+
+async function loginWithMagicLink(email) {
+    if (!supabase) return showToast('Supabase not configured');
+    
+    const { error } = await supabase.auth.signInWithOtp({ email });
+    if (error) {
+        showToast('Error sending magic link: ' + error.message);
+        return;
+    }
+    showToast('Magic link sent to your email');
+}
+
+async function logout() {
+    if (supabase) {
+        await supabase.auth.signOut();
+        user = null;
+        showToast('Logged out successfully');
+    }
+    renderDashboard();
+}
+
+async function syncUserData() {
+    if (!user || !supabase) return;
+    
+    const { data, error } = await supabase
+        .from('user_data')
+        .select('*')
+        .eq('user_id', user.id)
+        .single();
+    
+    if (data) {
+        skills = data.skills || skills;
+        styledLogs = data.styled_logs || styledLogs;
+        userXP = data.user_xp || userXP;
+        userLevel = data.user_level || userLevel;
+        streak = data.streak || streak;
+        lastActivityDate = data.last_activity_date || lastActivityDate;
+        darkMode = data.dark_mode || darkMode;
+        styledToSellMode = data.styled_to_sell_mode || styledToSellMode;
+        saveState();
+        
+        if (user.user_metadata.styled_to_sell_unlocked) {
+            styledToSellMode = true;
+            localStorage.setItem('styledToSellMode', 'true');
+            document.body.classList.add('styled-mode');
+        }
+    }
+}
+
+// Styled to Sell Mode unlock
+function unlockStyledMode() {
+    const codeInput = document.getElementById('styled-mode-code');
+    const code = codeInput.value.trim();
+    
+    if (code === 'SELLSTYLE23') {
+        styledToSellMode = true;
+        localStorage.setItem('styledToSellMode', 'true');
+        document.body.classList.add('styled-mode');
+        document.getElementById('styled-mode-modal').classList.add('hidden');
+        showToast('Styled to Sell Mode unlocked!');
+        
+        // Add predefined goals if not already added
+        styledGoals.forEach(goal => {
+            if (!skills.some(s => s.name === goal.title)) {
+                skills.push({
+                    id: uuidv4(),
+                    name: goal.title,
+                    category: goal.category,
+                    tags: ['StyledToSell'],
+                    milestones: [],
+                    reflections: [],
+                    progressLog: [],
+                    practiceHistory: [],
+                    weeklyPractice: {},
+                    createdAt: new Date().toISOString()
+                });
+            }
+        });
+        saveState();
+        renderDashboard();
+    } else {
+        showToast('Invalid code');
+    }
 }
 
 function toggleSidebar() {
@@ -1258,7 +1373,7 @@ function viewSkill(skillId) {
 function toggleDarkMode() {
     darkMode = !darkMode;
     document.body.classList.toggle('dark');
-   // Update icon class
+    // Update icon class
     const iconBtn = document.getElementById('dark-mode-toggle');
     if (iconBtn) {
         iconBtn.className = `fas ${darkMode ? 'fa-sun' : 'fa-moon'} text-gray-600 dark:text-gray-300`;
@@ -1269,7 +1384,7 @@ function toggleDarkMode() {
     if (textBtn) {
         textBtn.innerHTML = darkMode ? '☀️ Toggle Light Mode' : '🌙 Toggle Dark Mode';
     }
-    
+
     saveState();
 }
 

@@ -5,7 +5,7 @@
   "display": "standalone",
   "background_color": "#1F2937",
   "theme_color": "#2563EB",
-  "description": "Skill tracking and personal growth dashboard",
+  "description": "Skill tracking and personal growth dashboard with Styled to Sell Mode",
   "icons": [
     {
       "src": "images/logo2.png",
