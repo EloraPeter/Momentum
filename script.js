@@ -1624,13 +1624,13 @@ window.onload = () => {
     renderDashboard();
 };
 
-if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/service-worker.js')
-            .then(reg => console.log('[PWA] Service Worker registered', reg))
-            .catch(err => console.error('[PWA] Registration failed', err));
-    });
-}
+// if ('serviceWorker' in navigator) {
+//     window.addEventListener('load', () => {
+//         navigator.serviceWorker.register('/service-worker.js')
+//             .then(reg => console.log('[PWA] Service Worker registered', reg))
+//             .catch(err => console.error('[PWA] Registration failed', err));
+//     });
+// }
 
 if (window.matchMedia('(display-mode: standalone)').matches) {
     document.body.classList.add('standalone');
