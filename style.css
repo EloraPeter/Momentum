@@ -162,6 +162,7 @@ circle[stroke="#3b82f6"] {
 #edit-skill-modal,
 #share-modal,
 #onboarding-modal,
+#styled-mode-modal,
 #badge-gallery-modal {
     z-index: 50;
     background-color: rgba(0, 0, 0, 0.5);
@@ -174,6 +175,7 @@ circle[stroke="#3b82f6"] {
 #edit-skill-modal > div,
 #share-modal > div,
 #onboarding-modal > div,
+#styled-mode-modal > div,
 #badge-gallery-modal > div {
     background-color: var(--modal-bg);
     color: var(--text-primary);
