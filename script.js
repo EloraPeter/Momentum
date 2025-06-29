@@ -1238,7 +1238,7 @@ function renderMilestones(skill) {
             <input id="milestone-title" type="text" placeholder="Milestone title" class="p-2 rounded-lg border dark:bg-gray-900 dark:text-white" aria-label="Milestone title">
             <input id="milestone-weight" type="number" min="1" max="10" placeholder="Weight (1-10)" class="p-2 rounded-lg border dark:bg-gray-900 dark:text-white" aria-label="Milestone weight">
             <input id="milestone-deadline" type="date" class="p-2 rounded-lg border dark:bg-gray-900 dark:text-white" aria-label="Milestone deadline">
-            <button onclick="addMilestone('${skill.id}')" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 w-full sm:w-auto" aria-label="Add milestone">Add Milestone</button>
+            <button onclick="addMilestone('${skill.id}')" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 w-full sm:w-auto" aria-label="${window.currentEditingMilestoneId ? 'Update milestone' : 'Add milestone'}">${window.currentEditingMilestoneId ? 'Update Milestone' : 'Add Milestone'}</button>
         </div>
         <div class="space-y-2">
             ${skill.milestones.map(m => `
@@ -1253,8 +1253,8 @@ function renderMilestones(skill) {
                     </div>
                     <div class="flex gap-2">
                         <button onclick="toggleMilestone('${skill.id}', '${m.id}')" class="bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700" aria-label="${m.completed ? 'Unmark' : 'Mark'} complete">${m.completed ? 'Undo' : 'Complete'}</button>
-                            <button onclick="editMilestonePrompt('${skill.id}', '${m.id}')" class="bg-yellow-500 text-white px-3 py-1 rounded hover:bg-yellow-600" aria-label="Edit milestone">Edit</button>
-<button onclick="deleteMilestone('${skill.id}', '${m.id}')" class="bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700" aria-label="Delete milestone">Delete</button>
+                        <button onclick="editMilestone('${skill.id}', '${m.id}')" class="bg-yellow-500 text-white px-3 py-1 rounded hover:bg-yellow-600" aria-label="Edit milestone">Edit</button>
+                        <button onclick="deleteMilestone('${skill.id}', '${m.id}')" class="bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700" aria-label="Delete milestone">Delete</button>
                     </div>
                 </div>
             `).join('')}
@@ -1283,24 +1283,39 @@ function addMilestone(skillId) {
         return;
     }
 
-    if (!skill.milestones) skill.milestones = [];
+    const isEditing = !!window.currentEditingMilestoneId;
 
-    skill.milestones.push({
-        id: uuidv4(),
-        title,
-        weight: Math.max(1, Math.min(10, weight)),
-        deadline,
-        completed: false,
-        createdAt: new Date().toISOString()
-    });
+    if (isEditing) {
+        const milestone = skill.milestones.find(m => m.id === window.currentEditingMilestoneId);
+        if (milestone) {
+            milestone.title = title;
+            milestone.weight = Math.max(1, Math.min(10, weight));
+            milestone.deadline = deadline;
+            showToast('Milestone updated successfully!', 'success');
+        } else {
+            showToast('Milestone not found', 'error');
+        }
+        window.currentEditingMilestoneId = null;
+    } else {
+        if (!skill.milestones) skill.milestones = [];
+        skill.milestones.push({
+            id: uuidv4(),
+            title,
+            weight: Math.max(1, Math.min(10, weight)),
+            deadline,
+            completed: false,
+            createdAt: new Date().toISOString()
+        });
+        showToast('Milestone added successfully!', 'success');
+    }
 
-    logDailyProgress(skill);
-    saveState();
-
+    // Clear input fields
     document.getElementById('milestone-title').value = '';
     document.getElementById('milestone-weight').value = '';
     document.getElementById('milestone-deadline').value = '';
 
+    logDailyProgress(skill);
+    saveState();
     viewSkill(skillId);
     hideLoading();
 }
@@ -1334,6 +1349,29 @@ function toggleMilestone(skillId, milestoneId) {
     saveState();
     viewSkill(skillId);
     hideLoading();
+}
+
+function editMilestone(skillId, milestoneId) {
+    const skill = skills.find(s => s.id === skillId);
+    if (!skill) {
+        showToast('Skill not found', 'error');
+        return;
+    }
+    const milestone = skill.milestones.find(m => m.id === milestoneId);
+    if (!milestone) {
+        showToast('Milestone not found', 'error');
+        return;
+    }
+
+    // Prefill input fields
+    document.getElementById('milestone-title').value = milestone.title;
+    document.getElementById('milestone-weight').value = milestone.weight || 1;
+    document.getElementById('milestone-deadline').value = milestone.deadline || '';
+
+    // Store milestone ID for editing
+    window.currentEditingMilestoneId = milestoneId;
+
+    showToast('Edit the fields and click "Update Milestone" to save.', 'info');
 }
 
 function deleteMilestone(skillId, milestoneId) {
