@@ -60,7 +60,7 @@ Submit feedback via the in-app form.
 Contact support:
 Instagram: @elorapeter
 WhatsApp: +2348105769233
-Email: elorapeter@gmail.com
+Email: florenceonyi09@gmail.com
 
 
 
