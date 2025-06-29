@@ -1221,12 +1221,12 @@ function renderHeatmap(skill) {
     const days = Array.from({ length: 90 }, (_, i) => start.add(i, 'day').format('YYYY-MM-DD'));
 
     return `
-        <div class="grid grid-cols-10 gap-1">
+        <div class="grid grid-cols-12 gap-1">
             ${days.map(day => {
                 const isPracticed = skill.practiceHistory?.includes(day);
                 return `
                     <div 
-                        class="w-4 h-4 rounded heatmap-day ${isPracticed ? 'practiced' : ''}" 
+                        class="w-4 h-3 rounded heatmap-day ${isPracticed ? 'practiced' : ''}" 
                         title="${dayjs(day).format('MMM D, YYYY')}">
                     </div>
                 `;
