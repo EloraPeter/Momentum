@@ -1,353 +1,324 @@
 <!DOCTYPE html>
-<html lang="en">
-
+<html lang="en" class="dark:bg-gray-900">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <meta name="description" content="Skill tracking and personal growth dashboard">
-
-    <title>Momentum</title>
-    <link rel="shortcut icon" href="images/favicon.ico" type="image/x-icon">
-    <link rel="stylesheet" href="style.css">
-    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css">
-    <link rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="#2563EB">
-    <link rel="icon" href="images/favicon.ico" type="image/x-icon">
+    <meta name="description" content="Momentum App - Track your skills and progress with ease.">
+    <title>Momentum App</title>
+    <script src="https://cdn.jsdelivr.net/npm/dayjs@1/dayjs.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="manifest" href="/manifest.json">
+    <link rel="icon" type="image/png" href="/favicon.png">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            transition: background-color 0.3s, color 0.3s;
+        }
+        .dark {
+            background-color: #1f2937;
+            color: #f3f4f6;
+        }
+        .xp-bar {
+            height: 10px;
+            background-color: #e5e7eb;
+            border-radius: 5px;
+            overflow: hidden;
+        }
+        .xp-bar-fill {
+            height: 100%;
+            background-color: #3b82f6;
+            transition: width 0.3s ease-in-out;
+        }
+        .progress-ring {
+            transition: stroke-dasharray 0.3s ease-in-out;
+        }
+        .heatmap-day {
+            background-color: #e5e7eb;
+        }
+        .heatmap-day.practiced {
+            background-color: #10b981;
+        }
+        .badge {
+            display: inline-block;
+            padding: 0.25rem 0.5rem;
+            background-color: #e5e7eb;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            color: #374151;
+        }
+        .dark .badge {
+            background-color: #4b5563;
+            color: #d1d5db;
+        }
+        .dark .xp-bar {
+            background-color: #4b5563;
+        }
+        .dark .xp-bar-fill {
+            background-color: #60a5fa;
+        }
+        .dark .heatmap-day {
+            background-color: #4b5563;
+        }
+        .dark .heatmap-day.practiced {
+            background-color: #34d399;
+        }
+        .animate-toast-enter {
+            animation: toast-enter 0.3s ease-out;
+        }
+        .animate-toast-leave {
+            animation: toast-leave 0.3s ease-in;
+        }
+        .animate-badge-pop {
+            animation: badge-pop 0.5s ease-in-out;
+        }
+        @keyframes toast-enter {
+            from { transform: translateY(100%); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        @keyframes toast-leave {
+            from { transform: translateY(0); opacity: 1; }
+            to { transform: translateY(100%); opacity: 0; }
+        }
+        @keyframes badge-pop {
+            0% { transform: scale(0.8); }
+            50% { transform: scale(1.2); }
+            100% { transform: scale(1); }
+        }
+        .sidebar-open {
+            overflow: hidden;
+        }
+        #mobile-sidebar {
+            transition: transform 0.3s ease-in-out;
+        }
+        @media (max-width: 640px) {
+            .standalone #fab {
+                bottom: 5rem;
+            }
+        }
+    </style>
 </head>
+<body class="min-h-screen">
+    <!-- Loading Overlay -->
+    <div id="loading-overlay" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div class="animate-spin rounded-full h-12 w-12 border-t-4 border-blue-600"></div>
+    </div>
 
-<body class="dark transition-colors duration-300 min-h-screen flex flex-col">
-     
-    <header class="dark:bg-gray-800 shadow-md p-4 flex justify-between items-center">
-        <h1 class="flex items-center text-xl sm:text-2xl font-bold dark:text-white">
-            <img src="images/logo2.png" alt="" class="w-8 h-8 mr-2" />
-            Momentum
-        </h1>
+    <!-- Toast Container -->
+    <div id="toast-container" class="fixed bottom-4 right-4 z-50"></div>
 
-        <!-- Hamburger for mobile -->
-        <button class="sm:hidden dark:text-white text-2xl" onclick="toggleSidebar()"
-            aria-label="Toggle menu">
-            ☰
-        </button>
-
-        <!-- Desktop Nav -->
-        <div class="hidden sm:flex items-center gap-4">
-            <select id="sort-skills"
-                onchange="renderDashboard(null, 'category', this.value, document.getElementById('search-skills').value)"
-                class="p-2 rounded-lg border dark:bg-gray-700 dark:text-white dark:border-gray-600">
-                <option value="alphabetical">A-Z</option>
-                <option value="progress">Progress</option>
-                <option value="date">Date Added</option>
-            </select>
-            <button onclick="openBadgeGallery()"
-                class="text-gray-600 dark:text-gray-300 hover:text-blue-600">Badges</button>
-            <button onclick="openFeedback()"
-                class="text-gray-600 dark:text-gray-300 hover:text-blue-600">Feedback</button>
-            <button onclick="openHelp()" class="text-gray-600 dark:text-gray-300 hover:text-blue-600">Help</button>
-            <button onclick="openStyledModeModal(); toggleSidebar()" class="text-left text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-gray-100">Unlock Styled Mode</button>
-                <button onclick="openLoginModal(); toggleSidebar()" class="text-left text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-gray-100">Login</button>
-            <button id="dark-mode-toggle" class="fas fa-moon text-gray-600 dark:text-gray-300"
-                onclick="toggleDarkMode()" aria-label="Toggle dark mode"></button>
-                
+    <!-- Mobile Sidebar -->
+    <div id="mobile-sidebar" class="fixed inset-y-0 left-0 w-64 bg-white dark:bg-gray-800 shadow-lg transform -translate-x-full z-40 sm:hidden">
+        <div class="p-4">
+            <h2 class="text-xl font-bold dark:text-white">Menu</h2>
+            <button onclick="toggleSidebar()" class="absolute top-4 right-4 text-gray-600 dark:text-gray-300" aria-label="Close sidebar">
+                <i class="fas fa-times"></i>
+            </button>
         </div>
+        <nav class="p-4 space-y-2">
+            <button onclick="renderDashboard()" class="block w-full text-left px-4 py-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700 dark:text-white" aria-label="Dashboard">Dashboard</button>
+            <button onclick="openAddSkillModal()" class="block w-full text-left px-4 py-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700 dark:text-white" aria-label="Add Skill">Add Skill</button>
+            <button onclick="openBadgeGallery()" class="block w-full text-left px-4 py-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700 dark:text-white" aria-label="Badges">Badges</button>
+            <button onclick="toggleDarkMode()" class="block w-full text-left px-4 py-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700 dark:text-white" aria-label="Toggle Dark Mode">☀️ Toggle Light Mode</button>
+            <button onclick="openFeedback()" class="block w-full text-left px-4 py-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700 dark:text-white" aria-label="Feedback">Feedback</button>
+            <button onclick="openHelp()" class="block w-full text-left px-4 py-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700 dark:text-white" aria-label="Help">Help</button>
+            ${user ? `<button onclick="logout()" class="block w-full text-left px-4 py-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700 dark:text-white" aria-label="Logout">Logout</button>` : `<button onclick="openLoginModal()" class="block w-full text-left px-4 py-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700 dark:text-white" aria-label="Login">Login / Signup</button>`}
+        </nav>
+    </div>
+
+    <!-- Header -->
+    <header class="bg-white dark:bg-gray-800 shadow-md p-4 flex justify-between items-center">
+        <div class="flex items-center gap-4">
+            <button onclick="toggleSidebar()" class="sm:hidden text-gray-600 dark:text-gray-300" aria-label="Open sidebar">
+                <i class="fas fa-bars"></i>
+            </button>
+            <h1 class="text-2xl font-bold dark:text-white">Momentum</h1>
+        </div>
+        <nav class="hidden sm:flex items-center gap-4">
+            <button onclick="renderDashboard()" class="px-4 py-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700 dark:text-white" aria-label="Dashboard">Dashboard</button>
+            <button onclick="openAddSkillModal()" class="px-4 py-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700 dark:text-white" aria-label="Add Skill">Add Skill</button>
+            <button onclick="openBadgeGallery()" class="px-4 py-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700 dark:text-white" aria-label="Badges">Badges</button>
+            <button onclick="toggleDarkMode()" class="px-4 py-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700 dark:text-white" aria-label="Toggle Dark Mode">
+                <i id="dark-mode-toggle" class="fas fa-moon text-gray-600 dark:text-gray-300"></i>
+            </button>
+            <button onclick="openFeedback()" class="px-4 py-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700 dark:text-white" aria-label="Feedback">Feedback</button>
+            <button onclick="openHelp()" class="px-4 py-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700 dark:text-white" aria-label="Help">Help</button>
+            ${user ? `<button onclick="logout()" class="px-4 py-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700 dark:text-white" aria-label="Logout">Logout</button>` : `<button onclick="openLoginModal()" class="px-4 py-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700 dark:text-white" aria-label="Login">Login / Signup</button>`}
+        </nav>
     </header>
 
-    <!-- Mobile Sidebar Overlay -->
-    <div id="mobile-sidebar"
-        class="fixed left-0 h-full bg-white/30 dark:bg-gray-900/40 z-50 transform -translate-x-full transition-transform duration-300 ease-in-out sm:hidden">
-        <div
-            class="p-6 flex flex-col gap-4 h-full dark:text-white dark:bg-gray-800/30 rounded-r-xl shadow-lg">
-            <div class="flex justify-between items-center mb-6">
-                <h2 class="text-2xl font-bold">Menu</h2>
-                <button onclick="toggleSidebar()" class="text-3xl leading-none">&times;</button>
-            </div>
-            <select id="sort-skills-mobile"
-                onchange="renderDashboard(null, 'category', this.value, document.getElementById('search-skills').value); toggleSidebar();"
-                class="p-2 rounded-lg border dark:bg-gray-700 dark:text-white dark:border-gray-600">
-                <option value="alphabetical">A-Z</option>
-                <option value="progress">Progress</option>
-                <option value="date">Date Added</option>
-            </select>
-            <button onclick="openBadgeGallery(); toggleSidebar()">Badges</button>
-            <button onclick="openFeedback(); toggleSidebar()">Feedback</button>
-            <button onclick="openHelp(); toggleSidebar()">Help</button>
-            <button onclick="openStyledModeModal(); toggleSidebar()" class="text-left text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-gray-100">Unlock Styled Mode</button>
-                <button onclick="openLoginModal(); toggleSidebar()" class="text-left text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-gray-100">Login</button>
-            <button onclick="toggleDarkMode(); toggleSidebar()">Toggle Dark Mode</button>
-        </div>
-    </div>
+    <!-- Main Content -->
+    <main id="main-content" class="container mx-auto p-4 max-w-7xl"></main>
 
-
-
-    <main id="main-content" class="container mx-auto p-6">
-        <div class="flex items-center justify-center min-h-[50vh]">
-            <div class="dark:bg-gray-700 p-6 rounded-lg shadow-lg text-center">
-                <h2 class="text-xl font-semibold dark:text-white mb-4">No Skills Yet</h2>
-                <p class="text-gray-600 dark:text-gray-300 mb-4">Start your journey by adding a new skill!</p>
-                <button onclick="openAddSkillModal()"
-                    class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
-                    aria-label="Create new skill">Create Skill</button>
-            </div>
-        </div>
-    </main>
-
-    <button id="fab"
-        class="fixed bottom-6 right-6 bg-blue-600 text-white w-12 h-12 rounded-full shadow-lg hover:bg-blue-700 flex items-center justify-center text-2xl"
-        aria-label="Add new skill">
-        +
+    <!-- Floating Action Button -->
+    <button id="fab" class="fixed bottom-4 right-4 bg-blue-600 text-white p-4 rounded-full shadow-lg hover:bg-blue-700" aria-label="Add new skill">
+        <i class="fas fa-plus"></i>
     </button>
 
-    <div id="loading-overlay" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden">
-        <div class="animate-spin h-12 w-12 border-4 border-blue-600 border-t-transparent rounded-full"></div>
-    </div>
-
-    <div id="add-skill-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden">
-        <div class="bg-white dark:bg-gray-800 p-6 rounded-lg w-full max-w-md">
-            <h2 class="text-xl font-semibold dark:text-white mb-4">Add New Skill</h2>
-            <input id="new-skill" type="text" placeholder="Skill name"
-                class="w-full p-2 mb-4 rounded-lg border dark:bg-gray-700 dark:text-white dark:border-gray-600"
-                aria-label="Skill name">
-            <div>
-                <input list="categories" id="skill-category"
-                    class="w-full p-2 mb-4 rounded-lg border dark:bg-gray-700 dark:text-white dark:border-gray-600"
-                    placeholder="Type Category..." />
-                <datalist id="categories">
-                    <option value="Select Category">Select Category</option>
-                    <option value="Design">Design</option>
-                    <option value="Speaking">Speaking</option>
-                </datalist>
+    <!-- Onboarding Modal -->
+    <div id="onboarding-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-40">
+        <div class="bg-white dark:bg-gray-700 p-6 rounded-lg shadow-lg max-w-md w-full">
+            <h2 id="onboarding-step-title" class="text-xl font-semibold dark:text-white mb-2">Welcome to Momentum!</h2>
+            <p id="onboarding-step-desc" class="text-gray-600 dark:text-gray-300 mb-4">Let’s set up your first skill.</p>
+            <div id="onboarding-step-1">
+                <input id="onboarding-skill-name" type="text" placeholder="Enter skill name" class="w-full p-2 rounded-lg border dark:bg-gray-900 dark:text-white mb-4" aria-label="Skill name">
             </div>
-            <input id="skill-tags" type="text" placeholder="Tags (comma-separated)"
-                class="w-full p-2 mb-4 rounded-lg border dark:bg-gray-700 dark:text-white dark:border-gray-600"
-                aria-label="Skill tags">
-            <div class="flex gap-2 justify-end">
-                <button onclick="closeAddSkillModal()"
-                    class="px-4 py-2 bg-gray-300 dark:bg-gray-600 rounded-lg hover:bg-gray-400 dark:hover:bg-gray-500"
-                    aria-label="Cancel">Cancel</button>
-                <button onclick="addSkill()" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-                    aria-label="Add skill">Add</button>
+            <div id="onboarding-step-2" class="hidden">
+                <input id="onboarding-skill-category" type="text" placeholder="Enter category" class="w-full p-2 rounded-lg border dark:bg-gray-900 dark:text-white mb-4" aria-label="Skill category">
+                <input id="onboarding-skill-tags" type="text" placeholder="Enter tags (comma-separated)" class="w-full p-2 rounded-lg border dark:bg-gray-900 dark:text-white mb-4" aria-label="Skill tags">
             </div>
-        </div>
-    </div>
-
-    <!-- Onboarding Wizard Modal -->
-    <div id="onboarding-modal"
-        class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center">
-        <div class="bg-white dark:bg-gray-800 p-6 rounded-lg w-11/12 max-w-md space-y-4 text-center">
-            <h2 id="onboarding-step-title" class="text-2xl font-bold dark:text-white">Welcome to Momentum!</h2>
-            <p id="onboarding-step-desc" class="text-gray-600 dark:text-gray-300">Let’s set up your first skill.</p>
-
-            <!-- Step Content -->
-            <div id="onboarding-step-1" class="step-content">
-                <input id="onboarding-skill-name" type="text" placeholder="e.g. JavaScript"
-                    class="w-full p-2 rounded border dark:bg-gray-700 dark:text-white dark:border-gray-600" />
+            <div id="onboarding-step-3" class="hidden">
+                <input id="onboarding-milestone-title" type="text" placeholder="Milestone title" class="w-full p-2 rounded-lg border dark:bg-gray-900 dark:text-white mb-4" aria-label="Milestone title">
+                <input id="onboarding-milestone-weight" type="number" min="1" max="10" placeholder="Weight (1-10)" class="w-full p-2 rounded-lg border dark:bg-gray-900 dark:text-white mb-4" aria-label="Milestone weight">
+                <input id="onboarding-milestone-deadline" type="date" class="w-full p-2 rounded-lg border dark:bg-gray-900 dark:text-white mb-4" aria-label="Milestone deadline">
             </div>
-            <!-- Step 2 -->
-            <div id="onboarding-step-2" class="step-content hidden">
-                <input list="onboarding-categories" id="onboarding-skill-category" type="text"
-                    placeholder="Category (e.g. Frontend)"
-                    class="w-full p-2 rounded border mb-3 dark:bg-gray-700 dark:text-white dark:border-gray-600" />
-                <datalist id="onboarding-categories">
-                    <option value="Frontend"></option>
-                    <option value="Backend"></option>
-                    <option value="Design"></option>
-                    <option value="Productivity"></option>
-                    <option value="Writing"></option>
-                </datalist>
-                <input id="onboarding-skill-tags" type="text" placeholder="Tags (e.g. JavaScript, DOM, async)"
-                    class="w-full p-2 rounded border dark:bg-gray-700 dark:text-white dark:border-gray-600" />
-            </div>
-            <!-- Step 3 -->
-            <div id="onboarding-step-3" class="step-content hidden">
-                <input id="onboarding-milestone-title" type="text" placeholder="Milestone title (e.g. Learn DOM)"
-                    class="w-full p-2 rounded border mb-3 dark:bg-gray-700 dark:text-white dark:border-gray-600" />
-                <input id="onboarding-milestone-weight" type="number" min="1" max="10" placeholder="Weight (1-10)"
-                    class="w-full p-2 rounded border mb-3 dark:bg-gray-700 dark:text-white dark:border-gray-600" />
-                <input id="onboarding-milestone-deadline" type="date"
-                    class="w-full p-2 rounded border dark:bg-gray-700 dark:text-white dark:border-gray-600" />
-            </div>
-
-
-            <div class="flex justify-between mt-4">
-                <button onclick="skipOnboarding()" class="text-sm text-gray-500 hover:underline">Skip</button>
+            <div class="flex justify-between">
+                <button id="onboarding-back-btn" onclick="onboardingPrev()" class="hidden px-4 py-2 bg-gray-200 dark:bg-gray-600 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-500" aria-label="Previous step">Back</button>
                 <div class="flex gap-2">
-                    <button onclick="onboardingPrev()" id="onboarding-back-btn"
-                        class="hidden bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">Back</button>
-                    <button onclick="onboardingNext()"
-                        class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">Next</button>
+                    <button onclick="skipOnboarding()" class="px-4 py-2 bg-gray-200 dark:bg-gray-600 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-500" aria-label="Skip onboarding">Skip</button>
+                    <button onclick="onboardingNext()" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700" aria-label="Next step">Next</button>
                 </div>
             </div>
-
         </div>
     </div>
 
-
-    <div id="share-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center z-50">
-        <div class="bg-white dark:bg-gray-800 p-6 rounded-lg w-11/12 max-w-sm text-center">
-            <h3 class="text-lg font-bold dark:text-white mb-2">Share Progress</h3>
-            <p id="share-message" class="text-sm text-gray-600 dark:text-gray-300 mb-4"></p>
-            <div class="flex flex-wrap gap-2 justify-center">
-                <button onclick="shareTo('twitter')" class="bg-blue-500 text-white px-4 py-1 rounded">X
-                    (Twitter)</button>
-                <button onclick="shareTo('facebook')" class="bg-blue-700 text-white px-4 py-1 rounded">Facebook</button>
-                <button onclick="shareTo('linkedin')" class="bg-blue-600 text-white px-4 py-1 rounded">LinkedIn</button>
-                <button onclick="copyShareLink()" class="bg-gray-600 text-white px-4 py-1 rounded">Copy Link</button>
-                <button onclick="downloadCardImage()" class="bg-green-600 text-white px-4 py-1 rounded">Download
-                    Card</button>
-            </div>
-            <button onclick="closeShareModal()" class="mt-4 text-sm text-gray-500 hover:underline">Cancel</button>
+    <!-- Add Skill Modal -->
+    <div id="add-skill-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-40">
+        <div class="bg-white dark:bg-gray-700 p-6 rounded-lg shadow-lg max-w-md w-[90%]">
+            <h2 class="text-xl font-semibold dark:text-white mb-4">Add New Skill</h2>
+            <form onsubmit="event.preventDefault(); addSkill();" class="space-y-4">
+                <input id="new-skill" type="text" placeholder="Enter skill name" class="w-full p-2 rounded-lg border dark:bg-gray-900 dark:text-white" aria-label="New skill name">
+                <input id="skill-category" type="text" placeholder="Enter category" class="w-full p-2 rounded-lg border dark:bg-gray-900 dark:text-white" aria-label="Skill category">
+                <input id="skill-tags" type="text" placeholder="Enter tags (comma-separated)" class="w-full p-2 rounded-lg border dark:bg-gray-900 dark:text-white" aria-label="Skill tags">
+                <div class="flex justify-end gap-2">
+                    <button type="button" onclick="closeAddSkillModal()" class="px-4 py-2 bg-gray-200 dark:bg-gray-600 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-500" aria-label="Cancel">Cancel</button>
+                    <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700" aria-label="Create skill">Create</button>
+                </div>
+            </form>
         </div>
     </div>
 
-
-    <div id="edit-skill-modal"
-        class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center z-50">
-        <div class="bg-white dark:bg-gray-800 p-6 rounded-lg w-11/12 max-w-md">
-            <h3 class="text-lg font-bold dark:text-white mb-4">Edit Skill</h3>
-            <input id="edit-skill-name" type="text" placeholder="Skill name" class="w-full mb-2 p-2 border rounded" />
-            <input id="edit-skill-category" type="text" placeholder="Category" class="w-full mb-2 p-2 border rounded" />
-            <input id="edit-skill-tags" type="text" placeholder="Tags (comma separated)"
-                class="w-full mb-4 p-2 border rounded" />
-            <div class="flex justify-end gap-2">
-                <button onclick="closeEditSkillModal()" class="px-4 py-2 bg-gray-600 text-white rounded">Cancel</button>
-                <button onclick="saveEditedSkill()" class="px-4 py-2 bg-blue-600 text-white rounded">Save</button>
-            </div>
+    <!-- Edit Skill Modal -->
+    <div id="edit-skill-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-40">
+        <div class="bg-white dark:bg-gray-700 p-6 rounded-lg shadow-lg max-w-md w-[90%]">
+            <h2 class="text-xl font-semibold dark:text-white mb-4">Edit Skill</h2>
+            <form onsubmit="event.preventDefault(); saveEditedSkill();" class="space-y-4">
+                <input id="edit-skill-name" type="text" placeholder="Skill name" class="w-full p-2 rounded-lg border dark:bg-gray-900 dark:text-white" aria-label="Edit skill name">
+                <input id="edit-skill-category" type="text" placeholder="Category" class="w-full p-2 rounded-lg border dark:bg-gray-900 dark:text-white" aria-label="Edit skill category">
+                <input id="edit-skill-tags" type="text" placeholder="Tags (comma-separated)" class="w-full p-2 rounded-lg border dark:bg-gray-900 dark:text-white" aria-label="Edit skill tags">
+                <div class="flex justify-end gap-2">
+                    <button type="button" onclick="closeEditSkillModal()" class="px-4 py-2 bg-gray-200 dark:bg-gray-600 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-500" aria-label="Cancel">Cancel</button>
+                    <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700" aria-label="Save changes">Save</button>
+                </div>
+            </form>
         </div>
     </div>
 
-
-    <div id="feedback-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden">
-        <div class="bg-white dark:bg-gray-800 p-6 rounded-lg w-full max-w-md">
-            <h2 class="text-xl font-semibold dark:text-white mb-4">Feedback</h2>
-            <textarea id="feedback-text" placeholder="Your feedback..."
-                class="w-full p-2 mb-4 rounded-lg border dark:bg-gray-700 dark:text-white dark:border-gray-600" rows="4"
-                aria-label="Feedback input"></textarea>
-            <div class="flex gap-2 justify-end">
-                <button onclick="submitFeedback()" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-                    aria-label="Submit feedback">Submit</button>
-                <button onclick="closeFeedback()"
-                    class="px-4 py-2 bg-gray-300 dark:bg-gray-600 rounded-lg hover:bg-gray-400 dark:hover:bg-gray-500"
-                    aria-label="Close feedback modal">Close</button>
+    <!-- Share Modal -->
+    <div id="share-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-40">
+        <div class="bg-white dark:bg-gray-700 p-6 rounded-lg shadow-lg max-w-md w-[90%]">
+            <h2 class="text-xl font-semibold dark:text-white mb-4">Share Your Progress</h2>
+            <p id="share-message" class="mb-4 dark:text-white"></p>
+            <div class="flex flex-wrap gap-2">
+                <button onclick="shareTo('twitter')" class="bg-blue-400 text-white px-4 py-2 rounded-lg hover:bg-blue-500" aria-label="Share to Twitter">Twitter</button>
+                <button onclick="shareTo('facebook')" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700" aria-label="Share to Facebook">Facebook</button>
+                <button onclick="shareTo('linkedin')" class="bg-blue-800 text-white px-4 py-2 rounded-lg hover:bg-blue-900" aria-label="Share to LinkedIn">LinkedIn</button>
+                <button onclick="copyShareLink()" class="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700" aria-label="Copy link">Copy Link</button>
+                <button onclick="downloadCardImage()" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700" aria-label="Download image">Download Image</button>
+                <button onclick="closeShareModal()" class="bg-gray-200 dark:bg-gray-600 px-4 py-2 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-500" aria-label="Close">Close</button>
             </div>
         </div>
     </div>
 
-    <div id="help-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden">
-        <div class="bg-white dark:bg-gray-800 p-6 rounded-lg w-full max-w-md">
-            <h2 class="text-xl font-semibold dark:text-white mb-4">How to Use Momentum</h2>
-            <ol class="list-decimal pl-5 dark:text-gray-300">
-                <li>Add skills using the "+ Add Skill" button.</li>
-                <li>View and update milestones, practice history, and reflections.</li>
-                <li>Track your progress visually with charts and heatmaps.</li>
-                <li>Export your progress as PNG, PDF, JSON, or CSV.</li>
-                <li>Maintain streaks by practicing daily.</li>
-            </ol>
-            <div class="mt-4 flex justify-end">
-                <button onclick="closeHelp()"
-                    class="px-4 py-2 bg-gray-300 dark:bg-gray-600 rounded-lg hover:bg-gray-400 dark:hover:bg-gray-500"
-                    aria-label="Close help modal">Close</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- 🎖️ Badge Gallery Modal -->
-    <div id="badge-gallery-modal"
-        class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center z-50">
-        <div class="bg-white dark:bg-gray-800 p-6 rounded-lg w-11/12 max-w-2xl max-h-[90vh] overflow-auto">
-            <h3 class="text-2xl font-bold dark:text-white mb-4">🏅 Badge Gallery</h3>
-            <div id="badge-gallery-content" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <!-- badges will be injected here -->
-            </div>
-            <div class="text-right mt-6">
-                <button onclick="closeBadgeGallery()"
-                    class="bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-700">Close</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Styled Mode Unlock Modal -->
-    <div id="styled-mode-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden">
-        <div class="bg-white dark:bg-gray-700 p-6 rounded-lg shadow-lg w-full max-w-md">
+    <!-- Styled Mode Modal -->
+    <div id="styled-mode-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-40">
+        <div class="bg-white dark:bg-gray-700 p-6 rounded-lg shadow-lg max-w-md w-[90%]">
             <h2 class="text-xl font-semibold dark:text-white mb-4">Unlock Styled to Sell Mode</h2>
-            <input id="styled-mode-code" type="text" placeholder="Enter code (e.g., SELLSTYLE23)" class="w-full p-2 mb-4 rounded-lg border dark:bg-gray-900 dark:text-white" aria-label="Styled mode code">
-            <div class="flex justify-end gap-2">
-                <button onclick="closeStyledModeModal()" class="bg-gray-200 dark:bg-gray-600 px-4 py-2 rounded-lg">Cancel</button>
-                <button onclick="unlockStyledMode()" class="bg-pink-500 text-white px-4 py-2 rounded-lg hover:bg-pink-600">Unlock</button>
+            <form onsubmit="event.preventDefault(); unlockStyledMode();" class="space-y-4">
+                <input id="styled-mode-code" type="text" placeholder="Enter code" class="w-full p-2 rounded-lg border dark:bg-gray-900 dark:text-white" aria-label="Styled mode code">
+                <div class="flex justify-end gap-2">
+                    <button type="button" onclick="closeStyledModeModal()" class="px-4 py-2 bg-gray-200 dark:bg-gray-600 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-500" aria-label="Cancel">Cancel</button>
+                    <button type="submit" class="px-4 py-2 bg-pink-500 text-white rounded-lg hover:bg-pink-600" aria-label="Unlock">Unlock</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Login/Signup Modal -->
+    <div id="login-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-40">
+        <div class="bg-white dark:bg-gray-700 p-6 rounded-lg shadow-lg max-w-md w-[90%]">
+            <h2 class="text-xl font-semibold dark:text-white mb-4">Login or Signup</h2>
+            <div class="flex mb-4">
+                <button id="login-tab" class="flex-1 px-4 py-2 bg-gray-200 dark:bg-gray-600 rounded-l-lg active" onclick="document.getElementById('login-form').classList.remove('hidden'); document.getElementById('signup-form').classList.add('hidden'); this.classList.add('active'); document.getElementById('signup-tab').classList.remove('active')" aria-label="Show login form">Login</button>
+                <button id="signup-tab" class="flex-1 px-4 py-2 bg-gray-200 dark:bg-gray-600 rounded-r-lg" onclick="document.getElementById('signup-form').classList.remove('hidden'); document.getElementById('login-form').classList.add('hidden'); this.classList.add('active'); document.getElementById('login-tab').classList.remove('active')" aria-label="Show signup form">Signup</button>
+            </div>
+            <form id="login-form" onsubmit="event.preventDefault(); loginWithEmail(document.getElementById('login-email').value, document.getElementById('login-password').value);" class="space-y-4">
+                <input id="login-email" type="email" placeholder="Email" class="w-full p-2 rounded-lg border dark:bg-gray-900 dark:text-white" required aria-label="Login email">
+                <input id="login-password" type="password" placeholder="Password" class="w-full p-2 rounded-lg border dark:bg-gray-900 dark:text-white" required aria-label="Login password">
+                <button type="button" onclick="resetPassword(document.getElementById('login-email').value)" class="text-blue-600 dark:text-blue-400 hover:underline text-sm" aria-label="Forgot password">Forgot Password?</button>
+                <div class="flex justify-end gap-2">
+                    <button type="button" onclick="closeLoginModal()" class="px-4 py-2 bg-gray-200 dark:bg-gray-600 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-500" aria-label="Cancel">Cancel</button>
+                    <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700" aria-label="Login">Login</button>
+                </div>
+                <button type="button" onclick="loginWithMagicLink(document.getElementById('login-email').value)" class="w-full px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 mt-2" aria-label="Login with magic link">Login with Magic Link</button>
+            </form>
+            <form id="signup-form" class="hidden space-y-4" onsubmit="event.preventDefault(); signUpWithEmail(document.getElementById('signup-email').value, document.getElementById('signup-password').value);">
+                <input id="signup-email" type="email" placeholder="Email" class="w-full p-2 rounded-lg border dark:bg-gray-900 dark:text-white" required aria-label="Signup email">
+                <input id="signup-password" type="password" placeholder="Password" class="w-full p-2 rounded-lg border dark:bg-gray-900 dark:text-white" required aria-label="Signup password">
+                <div class="flex justify-end gap-2">
+                    <button type="button" onclick="closeLoginModal()" class="px-4 py-2 bg-gray-200 dark:bg-gray-600 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-500" aria-label="Cancel">Cancel</button>
+                    <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700" aria-label="Signup">Signup</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Feedback Modal -->
+    <div id="feedback-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-40">
+        <div class="bg-white dark:bg-gray-700 p-6 rounded-lg shadow-lg max-w-md w-[90%]">
+            <h2 class="text-xl font-semibold dark:text-white mb-4">Feedback</h2>
+            <textarea id="feedback-text" placeholder="Your feedback helps us improve!" class="w-full h-24 p-3 rounded-lg border dark:bg-gray-900 dark:text-white" aria-label="Feedback text"></textarea>
+            <div class="flex justify-end gap-2 mt-4">
+                <button onclick="closeFeedback()" class="px-4 py-2 bg-gray-200 dark:bg-gray-600 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-500" aria-label="Cancel">Cancel</button>
+                <button onclick="submitFeedback()" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700" aria-label="Submit feedback">Submit</button>
             </div>
         </div>
     </div>
 
-    <!-- Login Modal -->
-    <div id="login-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden">
-        <div class="bg-white dark:bg-gray-700 p-6 rounded-lg shadow-lg w-full max-w-md">
-            <h2 class="text-xl font-semibold dark:text-white mb-4">Login to Sync Data</h2>
-            <input id="login-email" type="email" placeholder="Email" class="w-full p-2 mb-2 rounded-lg border dark:bg-gray-900 dark:text-white" aria-label="Login email">
-            <input id="login-password" type="password" placeholder="Password (optional)" class="w-full p-2 mb-4 rounded-lg border dark:bg-gray-900 dark:text-white" aria-label="Login password">
-            <div class="flex justify-end gap-2">
-                <button onclick="loginWithEmail(document.getElementById('login-email').value, document.getElementById('login-password').value)" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">Login</button>
-                <button onclick="loginWithMagicLink(document.getElementById('login-email').value)" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">Magic Link</button>
-                <button onclick="closeLoginModal()" class="bg-gray-200 dark:bg-gray-600 px-4 py-2 rounded-lg">Cancel</button>
+    <!-- Help Modal -->
+    <div id="help-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-40">
+        <div class="bg-white dark:bg-gray-700 p-6 rounded-lg shadow-lg max-w-md w-[90%]">
+            <h2 class="text-xl font-semibold dark:text-white mb-4">Help</h2>
+            <p class="dark:text-white mb-4">Welcome to Momentum! Here’s how to get started:</p>
+            <ul class="list-disc list-inside dark:text-white mb-4">
+                <li>Add a skill using the + button.</li>
+                <li>Track progress by marking practice days and milestones.</li>
+                <li>Use Styled to Sell Mode with code "SELLSTYLE23".</li>
+                <li>Export your data or share progress via social media.</li>
+            </ul>
+            <p class="dark:text-white">Need more help? Contact support@momentum.app</p>
+            <div class="flex justify-end mt-4">
+                <button onclick="closeHelp()" class="px-4 py-2 bg-gray-200 dark:bg-gray-600 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-500" aria-label="Close">Close</button>
             </div>
         </div>
     </div>
 
-
-    <!-- Toast Notification -->
-    <div id="toast-container" class="fixed bottom-4 right-4 z-50 space-y-2"></div>
-
-    <footer class="dark:bg-gray-800 dark:text-gray-300 pt-4 pb-0 mt-12">
-        <div class="container mx-auto mb-0 px-4 pb-0 flex flex-col md:flex-row justify-between items-center">
-            <div class="mb-4 md:mb-0 flex items-center gap-2">
-                <img src="/images/logo2.png" alt="Momentum Logo" class="w-8 h-8 rounded-full" />
-                <span class="font-bold text-lg">Momentum</span>
-            </div>
-            <p class="text-sm order-last md:order-none mt-4 md:mt-0">&copy; 2025 Momentum. All rights reserved.</p>
-            <div class="flex gap-4 mt-4 md:mt-0">
-                <a href="#" class="hover:text-blue-600" aria-label="Twitter">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 fill-current" viewBox="0 0 24 24">
-                        <path
-                            d="M23.954 4.569c-.885.388-1.83.654-2.825.775a4.932 4.932 0 0 0 2.163-2.724 9.865 9.865 0 0 1-3.127 1.195 4.917 4.917 0 0 0-8.38 4.482 13.95 13.95 0 0 1-10.141-5.144 4.822 4.822 0 0 0-.666 2.475c0 1.708.87 3.215 2.188 4.099a4.904 4.904 0 0 1-2.228-.616c-.054 2.385 1.673 4.623 4.14 5.11a4.935 4.935 0 0 1-2.224.085 4.92 4.92 0 0 0 4.588 3.417 9.867 9.867 0 0 1-6.102 2.104c-.395 0-.779-.023-1.158-.067a13.945 13.945 0 0 0 7.557 2.212c9.054 0 14-7.496 14-13.986 0-.213 0-.425-.015-.636A9.936 9.936 0 0 0 24 4.59z" />
-                    </svg>
-                </a>
-                <a href="#" class="hover:text-blue-600" aria-label="GitHub">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 fill-current" viewBox="0 0 24 24">
-                        <path
-                            d="M12 0C5.37 0 0 5.373 0 12c0 5.303 3.438 9.8 8.205 11.387.6.11.82-.258.82-.577v-2.234c-3.338.726-4.033-1.61-4.033-1.61-.546-1.39-1.334-1.76-1.334-1.76-1.09-.745.082-.729.082-.729 1.205.084 1.84 1.234 1.84 1.234 1.07 1.834 2.805 1.304 3.492.997.107-.775.418-1.305.76-1.605-2.665-.305-5.466-1.334-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.304-.54-1.527.105-3.176 0 0 1.005-.322 3.3 1.23a11.5 11.5 0 0 1 6 0c2.28-1.552 3.285-1.23 3.285-1.23.645 1.65.24 2.872.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.62-5.475 5.92.42.36.81 1.096.81 2.21v3.293c0 .32.21.694.825.576C20.565 21.796 24 17.3 24 12c0-6.627-5.373-12-12-12z" />
-                    </svg>
-                </a>
-                <a href="#" class="hover:text-blue-600" aria-label="LinkedIn">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 fill-current" viewBox="0 0 24 24">
-                        <path
-                            d="M19 0h-14c-2.75 0-5 2.25-5 5v14c0 2.75 2.25 5 5 5h14c2.75 0 5-2.25 5-5v-14c0-2.75-2.25-5-5-5zm-11 19h-3v-9h3v9zm-1.5-10.25c-.966 0-1.75-.784-1.75-1.75s.784-1.75 1.75-1.75 1.75.784 1.75 1.75-.783 1.75-1.75 1.75zm13.5 10.25h-3v-4.5c0-1.08-.02-2.47-1.5-2.47-1.5 0-1.73 1.17-1.73 2.4v4.57h-3v-9h2.88v1.23h.04c.4-.75 1.37-1.53 2.82-1.53 3.02 0 3.58 1.99 3.58 4.57v4.73z" />
-                    </svg>
-                </a>
+    <!-- Badge Gallery Modal -->
+    <div id="badge-gallery-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-40">
+        <div class="bg-white dark:bg-gray-700 p-6 rounded-lg shadow-lg max-w-4xl w-[90%] max-h-[80vh] overflow-y-auto">
+            <h2 class="text-xl font-semibold dark:text-white mb-4">Badge Gallery</h2>
+            <div id="badge-gallery-content" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4"></div>
+            <div class="flex justify-end mt-4">
+                <button onclick="closeBadgeGallery()" class="px-4 py-2 bg-gray-200 dark:bg-gray-600 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-500" aria-label="Close">Close</button>
             </div>
         </div>
-        <p class="text-xs text-center text-gray-400 mt-4 designer">Designed with ❤ by Elora</p>
-    </footer>
+    </div>
 
-
-
-
-
-    <script>
-        let isTopBarOpen = false;
-
-        function toggleTopBar() {
-            const container = document.getElementById('topbar-collapse');
-            isTopBarOpen = !isTopBarOpen;
-            container.classList.toggle('hidden', !isTopBarOpen);
-        }
-    </script>
-    <script defer src="https://cdn.jsdelivr.net/npm/dayjs@1.11.10/dayjs.min.js"></script>
-    <script defer src="https://cdn.jsdelivr.net/npm/date-fns@3.6.0/cdn.min.js"></script>
-    <script defer src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.js"></script>
-    <script defer
-        src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
-    <script defer src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
-    <script defer src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
-    <script defer src="script.js"></script>
+    <script src="/script.js"></script>
 </body>
-
 </html>
