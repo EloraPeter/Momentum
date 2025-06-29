@@ -1134,8 +1134,6 @@ function viewSkill(skillId) {
     setTimeout(() => drawChart(skill), 0); // small delay ensures DOM is ready
 }
 
-
-
 function renderChart(skill, unit = 'day') {
     return `
         <h3 class="text-lg font-semibold dark:text-white mb-2">Progress Over Time</h3>
