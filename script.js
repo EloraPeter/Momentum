@@ -934,7 +934,7 @@ function renderTopBar(filter, type, sort, searchQuery) {
                 <div class="flex flex-wrap gap-2 w-full sm:w-auto">
                     <button onclick="exportData('json')" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 w-full sm:w-auto" aria-label="Export as JSON">Export JSON</button>
                     <button onclick="exportData('csv')" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 w-full sm:w-auto" aria-label="Export as CSV">Export CSV</button>
-                    <button onclick="toggleSkillView()" class="bg-gray-200 dark:bg-gray-800 dark:text-white px-4 py-2 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-700 w-full sm:w-auto" aria-label="Toggle view">${icon}</button>
+                    <button onclick="toggleSkillView()" class="dark:bg-gray-800 dark:text-white px-4 py-2 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-700 w-full sm:w-auto" aria-label="Toggle view">${icon}</button>
                 </div>
             </div>
         </div>
