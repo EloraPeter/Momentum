@@ -666,8 +666,9 @@ function renderDashboard(filter = null, type = 'category', sort = 'alphabetical'
             ` : ''}
             ${renderTopBar(filter, type, sort, searchQuery)}
             ${renderStats()}
-            ${styledToSellMode ? renderStyledTracker() : ''}
+            
             ${renderSkillCards(sortedSkills)}
+            
         `;
         attachSearchInput(filter, type, sort);
         updateCategoryDropdown();
@@ -782,7 +783,7 @@ function downloadStyledLogs() {
     const csv = [
         ['Date', 'Post', 'Performance', 'Learned'],
         ...styledLogs.map(log => [
-            dayjs(log.date).format('YYYY-MM-DD'),
+            dayjs(log.date).format('YYYY-MM-DD HH:mm:ss'),
             `"${log.post.replace(/"/g, '""')}"`,
             `"${log.performance.replace(/"/g, '""')}"`,
             `"${log.learn.replace(/"/g, '""')}"`
