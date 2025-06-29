@@ -728,6 +728,10 @@ function renderStyledTracker() {
                             <p class="dark:text-white"><strong>Post:</strong> ${log.post}</p>
                             <p class="dark:text-white"><strong>Performance:</strong> ${log.performance}</p>
                             <p class="dark:text-white"><strong>Learned:</strong> ${log.learn}</p>
+                            <div class="mt-2 flex gap-2">
+                                <button onclick="editStyledLog('${log.id}')" class="text-sm bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600">Edit</button>
+                                <button onclick="deleteStyledLog('${log.id}')" class="text-sm bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600">Delete</button>
+                            </div>
                         </div>
                     `).join('')}
                 </div>
@@ -788,8 +792,8 @@ function downloadStyledLogs() {
             `"${log.learn.replace(/"/g, '""')}"`
         ])
     ]
-    .map(row => row.join(','))
-    .join('\n');
+        .map(row => row.join(','))
+        .join('\n');
 
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
@@ -1153,9 +1157,9 @@ function renderMilestones(skill) {
                     <div class="flex-1 min-w-0">
                         <p class="dark:text-white ${m.completed ? 'line-through' : ''}">${m.title} (Weight: ${m.weight || 1})</p>
                         <p class="text-sm text-gray-500 dark:text-gray-400">
-                            ${m.deadline 
-                                ? `${dayjs(m.deadline).format('MMM D, YYYY')} — ${getDeadlineCountdown(m.deadline)}`
-                                : 'No deadline'}
+                            ${m.deadline
+            ? `${dayjs(m.deadline).format('MMM D, YYYY')} — ${getDeadlineCountdown(m.deadline)}`
+            : 'No deadline'}
                         </p>
                     </div>
                     <div class="flex gap-2">
