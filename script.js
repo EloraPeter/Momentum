@@ -1083,6 +1083,19 @@ function drawChart(skill, unit = 'day') {
     });
 }
 
+function exportChart(skillId) {
+    const canvas = document.getElementById('progress-chart');
+    if (!canvas) {
+        showToast('Chart not found', 'error');
+        return;
+    }
+
+    const link = document.createElement('a');
+    link.download = `${skillId}-progress-chart.png`;
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+}
+
 
 function renderMilestones(skill) {
     return `
