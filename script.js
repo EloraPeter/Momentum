@@ -666,9 +666,8 @@ function renderDashboard(filter = null, type = 'category', sort = 'alphabetical'
             ` : ''}
             ${renderTopBar(filter, type, sort, searchQuery)}
             ${renderStats()}
-            
             ${renderSkillCards(sortedSkills)}
-            
+            ${styledToSellMode ? renderStyledTracker() : ''}
         `;
         attachSearchInput(filter, type, sort);
         updateCategoryDropdown();
