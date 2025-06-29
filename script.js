@@ -738,42 +738,68 @@ function renderStyledTracker() {
 
 function addStyledLog() {
     showLoading();
+
     const post = document.getElementById('post-today')?.value.trim();
     const performance = document.getElementById('post-performance')?.value.trim();
     const learn = document.getElementById('post-learn')?.value.trim();
+
     if (!post || !performance || !learn) {
         showToast('Please fill all fields', 'error');
         hideLoading();
         return;
     }
-    styledLogs.push({
+
+    const log = {
         id: uuidv4(),
         post,
         performance,
         learn,
-        date: new Date().toISOString()
-    });
+        date: new Date().toISOString()  // ISO for consistency
+    };
+
+    styledLogs.push(log);
+    saveState();
+
+    // Clear inputs
     document.getElementById('post-today').value = '';
     document.getElementById('post-performance').value = '';
     document.getElementById('post-learn').value = '';
-    saveState();
+
+    // Toast confirmation
+    showToast('Log added successfully!', 'success');
+
     renderDashboard();
     hideLoading();
 }
 
+
 function downloadStyledLogs() {
-    let csv = 'Date,Post,Performance,Learned\n';
-    styledLogs.forEach(log => {
-        csv += `"${dayjs(log.date).format('YYYY-MM-DD')}","${log.post.replace(/"/g, '""')}","${log.performance.replace(/"/g, '""')}","${log.learn.replace(/"/g, '""')}"\n`;
-    });
-    const blob = new Blob([csv], { type: 'text/csv' });
+    if (!styledLogs.length) {
+        showToast('No logs to download', 'info');
+        return;
+    }
+
+    const csv = [
+        ['Date', 'Post', 'Performance', 'Learned'],
+        ...styledLogs.map(log => [
+            dayjs(log.date).format('YYYY-MM-DD'),
+            `"${log.post.replace(/"/g, '""')}"`,
+            `"${log.performance.replace(/"/g, '""')}"`,
+            `"${log.learn.replace(/"/g, '""')}"`
+        ])
+    ]
+    .map(row => row.join(','))
+    .join('\n');
+
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = 'styled_logs.csv';
+    link.download = `styled_post_logs_${dayjs().format('YYYYMMDD')}.csv`;
     link.click();
     URL.revokeObjectURL(url);
 }
+
 
 function getFilteredSkills(filter, type, searchQuery) {
     let result = [...skills];
