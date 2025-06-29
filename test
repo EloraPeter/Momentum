@@ -49,13 +49,6 @@ async function saveState() {
         localStorage.setItem('unlockedBadges', JSON.stringify(getUnlockedBadgeIds()));
 
         if (user) {
-            const { data: { session } } = await supabase.auth.getSession();
-            if (!session) {
-                showToast('Session expired. Please log in again.', 'error');
-                user = null;
-                renderDashboard();
-                return;
-            }
             const { error } = await supabase.from('user_data').upsert({
                 user_id: user.id,
                 skills,
@@ -70,7 +63,7 @@ async function saveState() {
             }, { onConflict: ['user_id'] });
             if (error) {
                 console.error('Supabase save error:', error);
-                showToast(`Error syncing data with server: ${error.message}`, 'error');
+                showToast('Error syncing data with server', 'error');
             }
         }
     } catch (error) {
@@ -85,21 +78,13 @@ async function saveState() {
 async function signUpWithEmail(email, password) {
     try {
         showLoading();
-        if (!email || !password) {
-            showToast('Email and password are required', 'error');
-            return;
-        }
-        if (password.length < 6) {
-            showToast('Password must be at least 6 characters', 'error');
-            return;
-        }
         const { data, error } = await supabase.auth.signUp({
             email,
             password,
             options: { emailRedirectTo: window.location.origin }
         });
         if (error) {
-            showToast(`Signup failed: ${error.message}`, 'error');
+            showToast('Signup failed: ' + error.message, 'error');
             return;
         }
         if (data.user) {
@@ -122,17 +107,9 @@ async function signUpWithEmail(email, password) {
 async function loginWithEmail(email, password) {
     try {
         showLoading();
-        if (!email || !password) {
-            showToast('Email and password are required', 'error');
-            return;
-        }
         const { data, error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) {
-            if (error.status === 400) {
-                showToast('Invalid email or password', 'error');
-            } else {
-                showToast(`Login failed: ${error.message}`, 'error');
-            }
+            showToast('Login failed: ' + error.message, 'error');
             return;
         }
         user = data.user;
@@ -151,16 +128,12 @@ async function loginWithEmail(email, password) {
 async function loginWithMagicLink(email) {
     try {
         showLoading();
-        if (!email) {
-            showToast('Email is required', 'error');
-            return;
-        }
         const { error } = await supabase.auth.signInWithOtp({
             email,
             options: { emailRedirectTo: window.location.origin }
         });
         if (error) {
-            showToast(`Error sending magic link: ${error.message}`, 'error');
+            showToast('Error sending magic link: ' + error.message, 'error');
             return;
         }
         showToast('Magic link sent to your email');
@@ -175,15 +148,11 @@ async function loginWithMagicLink(email) {
 async function resetPassword(email) {
     try {
         showLoading();
-        if (!email) {
-            showToast('Please enter your email', 'error');
-            return;
-        }
         const { error } = await supabase.auth.resetPasswordForEmail(email, {
             redirectTo: window.location.origin + '/reset-password'
         });
         if (error) {
-            showToast(`Error sending password reset link: ${error.message}`, 'error');
+            showToast('Error sending password reset link: ' + error.message, 'error');
             return;
         }
         showToast('Password reset link sent to your email');
@@ -215,13 +184,6 @@ async function syncUserData() {
     if (!user) return;
     try {
         showLoading();
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session) {
-            showToast('Session expired. Please log in again.', 'error');
-            user = null;
-            renderDashboard();
-            return;
-        }
         const { data, error } = await supabase
             .from('user_data')
             .select('*')
@@ -229,7 +191,7 @@ async function syncUserData() {
             .single();
         if (error && error.code !== 'PGRST116') {
             console.error('Supabase sync error:', error);
-            showToast(`Error syncing user data: ${error.message}`, 'error');
+            showToast('Error syncing user data', 'error');
             return;
         }
         if (data) {
@@ -252,7 +214,7 @@ async function syncUserData() {
             await saveState();
         } else {
             // Create initial user_data row
-            const { error: insertError } = await supabase.from('user_data').insert({
+            await supabase.from('user_data').insert({
                 user_id: user.id,
                 skills,
                 styled_logs: styledLogs,
@@ -264,10 +226,6 @@ async function syncUserData() {
                 styled_to_sell_mode: styledToSellMode,
                 unlocked_badges: getUnlockedBadgeIds()
             });
-            if (insertError) {
-                console.error('Supabase insert error:', insertError);
-                showToast(`Error initializing user data: ${insertError.message}`, 'error');
-            }
         }
     } catch (error) {
         console.error('Error syncing user data:', error);
@@ -313,18 +271,6 @@ function unlockStyledMode() {
     hideLoading();
 }
 
-// Toggle dark mode
-function toggleDarkMode() {
-    darkMode = !darkMode;
-    localStorage.setItem('darkMode', darkMode);
-    document.body.classList.toggle('dark', darkMode);
-    const toggleIcon = document.getElementById('dark-mode-toggle');
-    if (toggleIcon) {
-        toggleIcon.className = darkMode ? 'fas fa-sun text-yellow-400' : 'fas fa-moon text-gray-600 dark:text-gray-300';
-    }
-    saveState();
-}
-
 // Toggle sidebar
 function toggleSidebar() {
     const sidebar = document.getElementById('mobile-sidebar');
@@ -367,7 +313,7 @@ function showToastConfirm(message) {
             return;
         }
         const toast = document.createElement('div');
-        toast.className = `bg-yellow-500 text-white px-4 py-3 rounded shadow-md animate-toast-enter fixed bottom-4 right-4 z-50 max-w-[90%] sm:max-w-md flex flex-col gap-2`;
+        toast.className = 'bg-yellow-500 text-white px-4 py-3 rounded shadow-md animate-toast-enter fixed bottom-4 right-4 z-50 max-w-[90%] sm:max-w-md flex flex-col gap-2';
         toast.innerHTML = `
             <div>${message}</div>
             <div class="flex justify-end gap-2">
@@ -466,7 +412,7 @@ function onboardingShowStep(step) {
     for (let i = 1; i <= 3; i++) {
         document.getElementById(`onboarding-step-${i}`)?.classList.add('hidden');
     }
-    document.getElementById(`onboarding-step-${step}`)?.classList.remove('hidden');
+    document.getElementById(`onboarding-step-${i}`)?.classList.remove('hidden');
     const title = document.getElementById('onboarding-step-title');
     const desc = document.getElementById('onboarding-step-desc');
     if (title && desc) {
@@ -900,7 +846,254 @@ function renderSkillCardList(skill) {
     `;
 }
 
-// Skill management
+function attachSearchInput(filter, type, sort) {
+    const searchInput = document.getElementById('search-skills');
+    if (!searchInput) return;
+    let debounceTimeout;
+    searchInput.addEventListener('input', (e) => {
+        clearTimeout(debounceTimeout);
+        debounceTimeout = setTimeout(() => {
+            renderDashboard(filter, type, sort, e.target.value);
+        }, 300);
+    });
+}
+
+function updateCategoryDropdown() {
+    const categorySelect = document.getElementById('skill-category');
+    if (categorySelect) {
+        categorySelect.innerHTML = `
+            <option value="">Select Category</option>
+            ${[...new Set(skills.map(s => s.category || 'Uncategorized'))]
+                .map(category => `<option value="${category}">${category}</option>`)
+                .join('')}
+        `;
+    }
+}
+
+function renderSkillDetail(skillId) {
+    showLoading();
+    const skill = skills.find(s => s.id === skillId);
+    if (!skill) {
+        console.error('Skill not found:', skillId);
+        showToast('Skill not found', 'error');
+        hideLoading();
+        return;
+    }
+    currentSkillId = skillId;
+    const main = document.getElementById('main-content');
+    if (!main) return;
+    const prompts = [
+        'What was hard today?',
+        'What surprised you?',
+        'What did you learn?',
+        'How did you feel about your progress?'
+    ];
+    main.innerHTML = `
+        <div class="bg-white dark:bg-gray-700 p-6 rounded-lg shadow-md w-full">
+            <button onclick="renderDashboard()" class="mb-4 text-blue-600 dark:text-blue-400 hover:underline" aria-label="Back to dashboard">← Back to Dashboard</button>
+            <h2 class="text-2xl font-bold dark:text-white" aria-label="${skill.name}">${skill.name}</h2>
+            <p class="text-gray-600 dark:text-gray-400">${getStatusEmoji(calculateProgress(skill))}</p>
+            <div class="my-6">
+                <h3 class="text-lg font-semibold dark:text-white">Progress Over Time</h3>
+                <div class="flex flex-wrap gap-2 mb-2">
+                    <button onclick="renderChart('${skill.id}', 'day')" class="bg-gray-200 dark:bg-gray-600 px-4 py-1 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-500" aria-label="View daily progress">Daily</button>
+                    <button onclick="renderChart('${skill.id}', 'week')" class="bg-gray-200 dark:bg-gray-600 px-4 py-1 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-500" aria-label="View weekly progress">Weekly</button>
+                    <button onclick="exportChart('${skill.id}')" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700" aria-label="Export progress chart">Export Chart</button>
+                </div>
+                <div class="relative h-[300px] w-full">
+                    <canvas id="progressChart" width="400" height="200" class="w-full h-auto" aria-label="Progress chart"></canvas>
+                </div>
+                <div class="relative w-4/5 mx-auto bg-gray-200 dark:bg-gray-600 rounded h-4 mt-4">
+                    <div class="bg-blue-600 h-4 rounded" style="width: ${calculateProgress(skill)}%;"></div>
+                </div>
+            </div>
+            <div class="my-6">
+                <h3 class="text-lg font-semibold dark:text-white">Daily Practice</h3>
+                <div class="mb-2 flex flex-wrap gap-2">
+                    ${['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(day => `
+                        <label class="inline-flex items-center mr-2">
+                            <input type="checkbox" class="h-5 w-5" onchange="togglePracticeDay('${skill.id}', '${day}')" ${skill.weeklyPractice?.[day] ? 'checked' : ''} aria-label="Toggle ${day} practice">
+                            <span class="ml-1 dark:text-white">${day}</span>
+                        </label>
+                    `).join('')}
+                </div>
+                <div id="practiceHeatmap" class="flex flex-wrap gap-2" aria-label="Practice heatmap"></div>
+                <button onclick="markTodayPracticed('${skill.id}')" class="bg-green-600 text-white px-4 py-2 rounded-lg mt-4 hover:bg-green-700 w-full sm:w-auto" aria-label="Mark today as practiced">Mark Today as Practiced</button>
+            </div>
+            <div class="my-6">
+                <h3 class="text-lg font-semibold dark:text-white">Milestones</h3>
+                <div class="mb-4 flex flex-col sm:flex-row gap-2 flex-wrap">
+                    <input id="milestone-text" type="text" placeholder="Milestone title" class="flex-1 p-2 rounded-lg border dark:bg-gray-900 dark:text-white border-gray-200 dark:border-gray-600" aria-label="Milestone title">
+                    <input id="milestone-weight" type="number" min="1" max="10" placeholder="Weight (1-10)" class="w-full sm:w-24 p-2 rounded-lg border dark:bg-gray-900 dark:text-white border-gray-200 dark:border-gray-600" aria-label="Milestone weight">
+                    <input id="milestone-deadline" type="date" class="p-2 rounded-lg border dark:bg-gray-900 dark:text-white border-gray-200 dark:border-gray-600 w-full sm:w-auto" aria-label="Milestone deadline">
+                    <button onclick="addMilestone('${skill.id}')" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 w-full sm:w-auto" aria-label="Add milestone">Add Milestone</button>
+                </div>
+                ${skill.milestones.map(m => `
+                    <div class="flex items-center gap-2 p-4 border-b dark:border-gray-600 justify-between flex-col sm:flex-row">
+                        <div class="flex items-center gap-2 flex-1">
+                            <input type="checkbox" ${m.completed ? 'checked' : ''} onchange="toggleMilestone('${skill.id}', '${m.id}')" class="h-5 w-5" aria-label="Toggle milestone ${m.title} completion">
+                            <div>
+                                <p class="dark:text-white">${m.title} (Weight: ${m.weight || 1})</p>
+                                ${m.deadline ? `<p class="text-sm text-gray-500 dark:text-gray-300">Due: ${dayjs(m.deadline).format('MMM d, YYYY')}</p>` : ''}
+                            </div>
+                        </div>
+                        <div class="flex gap-2 mt-2 sm:mt-0">
+                            <button onclick="editMilestone('${skill.id}', '${m.id}')" class="text-blue-600 dark:text-blue-400 hover:underline" aria-label="Edit milestone ${m.title}">Edit</button>
+                            <button onclick="deleteMilestone('${skill.id}', '${m.id}')" class="text-red-600 dark:text-red-400 hover:underline" aria-label="Delete milestone ${m.title}">Delete</button>
+                        </div>
+                    </div>
+                `).join('')}
+            </div>
+            <div class="my-6">
+                <h3 class="text-lg font-semibold dark:text-white">Reflection Journal</h3>
+                <textarea id="new-reflection" placeholder="${prompts[Math.floor(Math.random() * prompts.length)]}" class="w-full h-24 p-3 rounded-lg border dark:bg-gray-900 dark:text-white border-gray-200 dark:border-gray-600" aria-label="New reflection"></textarea>
+                <div class="flex gap-2 mt-4">
+                    <button onclick="addReflection('${skill.id}')" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-800 w-full sm:w-auto" aria-label="Save reflection">Save</button>
+                </div>
+                <div class="mt-4">
+                    ${skill.reflections.slice().reverse().map(r => `
+                        <div class="p-4 border-b dark:border-gray-600">
+                            <p class="text-sm text-gray-500 dark:text-gray-400">${dayjs(r.date).format('MMM d, YYYY HH:mm')}</p>
+                            <p class="dark:text-white">${r.text}</p>
+                            <div class="flex gap-2 mt-2">
+                                <button onclick="editReflection('${skill.id}', '${r.id}')" class="text-blue-600 dark:text-blue-400 hover:underline" aria-label="Edit reflection">Edit</button>
+                                <button onclick="deleteReflection('${skill.id}', '${r.id}')" class="text-red-600 dark:text-red-400 hover:underline" aria-label="Delete reflection">Delete</button>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        </div>
+    `;
+    renderChart(skillId, 'day');
+    renderHeatmap(skillId);
+    hideLoading();
+}
+
+function renderChart(skillId, unit) {
+    const skill = skills.find(s => s.id === skillId);
+    if (!skill || !skill.progressLog) return;
+    const ctx = document.getElementById('progressChart');
+    if (!ctx) return;
+    if (progressChart) {
+        progressChart.destroy();
+        progressChart = null;
+    }
+    ctx.getContext('2d').clearRect(0, 0, ctx.width, ctx.height);
+    try {
+        const progressData = skill.progressLog.map(log => ({
+            x: new Date(log.date),
+            y: Number(log.progress) || 0
+        }));
+        progressChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                datasets: [{
+                    label: `${skill.name} Progress`,
+                    data: progressData,
+                    borderColor: styledToSellMode && skill.tags?.includes('StyledToSell') ? '#ec4899' : '#3b82f6',
+                    backgroundColor: styledToSellMode && skill.tags?.includes('StyledToSell') ? 'rgba(236, 72, 153, 0.2)' : 'rgba(59, 130, 246, 0.2)',
+                    fill: true,
+                    tension: 0.4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: {
+                        type: 'time',
+                        time: {
+                            unit: unit,
+                            tooltipFormat: 'MMM d, YYYY',
+                            displayFormats: {
+                                day: 'MMM d',
+                                week: 'MMM YYYY'
+                            }
+                        },
+                        title: { display: true, text: 'Date' }
+                    },
+                    y: {
+                        beginAtZero: true,
+                        max: 100,
+                        title: { display: true, text: 'Progress (%)' }
+                    }
+                }
+            }
+        });
+    } catch (error) {
+        console.error('Error rendering chart:', error);
+        showToast('Error rendering chart', 'error');
+    }
+}
+
+function exportChart(skillId) {
+    const skill = skills.find(s => s.id === skillId);
+    const canvas = document.getElementById('progressChart');
+    if (!skill || !canvas) return;
+    try {
+        html2canvas(canvas, { useCORS: true }).then(canvas => {
+            const imgData = canvas.toDataURL('image/png');
+            const link = document.createElement('a');
+            link.download = `${skill.name}-progress.png`;
+            link.href = imgData;
+            link.click();
+            const pdf = new jsPDF();
+            pdf.addImage(imgData, 'PNG', 10, 10, 190, 100);
+            pdf.save(`${skill.name}-progress.pdf`);
+        });
+    } catch (error) {
+        console.error('Error exporting chart:', error);
+        showToast('Error exporting chart', 'error');
+    }
+}
+
+function renderHeatmap(skillId) {
+    const skill = skills.find(s => s.id === skillId);
+    const heatmap = document.getElementById('practiceHeatmap');
+    if (!skill || !heatmap) return;
+    heatmap.innerHTML = '';
+    const today = dayjs();
+    for (let i = 29; i >= 0; i--) {
+        const date = today.subtract(i, 'day').format('YYYY-MM-DD');
+        const practiced = skill.practiceHistory?.includes(date);
+        const dayElement = document.createElement('div');
+        dayElement.className = `heatmap-day ${practiced ? 'practiced' : ''} w-6 h-6 rounded-sm`;
+        dayElement.title = date;
+        heatmap.appendChild(dayElement);
+    }
+}
+
+function addSkill() {
+    showLoading();
+    const input = document.getElementById('new-skill');
+    const category = document.getElementById('skill-category')?.value || 'Uncategorized';
+    const tags = document.getElementById('skill-tags')?.value.split(',').map(t => t.trim()).filter(t => t);
+    if (!input?.value.trim()) {
+        showToast('Skill name cannot be empty', 'error');
+        hideLoading();
+        return;
+    }
+    skills.push({
+        id: uuidv4(),
+        name: input.value.trim(),
+        category,
+        tags,
+        milestones: [],
+        reflections: [],
+        progressLog: [],
+        practiceHistory: [],
+        weeklyPractice: {},
+        createdAt: new Date().toISOString()
+    });
+    input.value = '';
+    document.getElementById('skill-tags').value = '';
+    closeAddSkillModal();
+    saveState();
+    renderDashboard();
+    hideLoading();
+}
+
 function openAddSkillModal() {
     document.getElementById('add-skill-modal')?.classList.remove('hidden');
 }
@@ -912,77 +1105,34 @@ function closeAddSkillModal() {
     document.getElementById('skill-tags').value = '';
 }
 
-function addSkill() {
-    showLoading();
-    const name = document.getElementById('new-skill')?.value.trim();
-    const category = document.getElementById('skill-category')?.value.trim() || 'Uncategorized';
-    const tags = document.getElementById('skill-tags')?.value
-        .split(',')
-        .map(t => t.trim())
-        .filter(Boolean);
-    if (!name) {
-        showToast('Skill name is required', 'error');
-        hideLoading();
-        return;
-    }
-    skills.push({
-        id: uuidv4(),
-        name,
-        category,
-        tags,
-        milestones: [],
-        reflections: [],
-        progressLog: [],
-        practiceHistory: [],
-        weeklyPractice: {},
-        createdAt: new Date().toISOString()
-    });
-    saveState();
-    closeAddSkillModal();
-    renderDashboard();
-    hideLoading();
-}
+let skillToEdit = null;
 
 function editSkill(skillId) {
     const skill = skills.find(s => s.id === skillId);
     if (!skill) return;
-    currentSkillId = skillId;
+    skillToEdit = skillId;
     document.getElementById('edit-skill-name').value = skill.name;
-    document.getElementById('edit-skill-category').value = skill.category || 'Uncategorized';
-    document.getElementById('edit-skill-tags').value = skill.tags?.join(', ') || '';
+    document.getElementById('edit-skill-category').value = skill.category || '';
+    document.getElementById('edit-skill-tags').value = (skill.tags || []).join(', ');
     document.getElementById('edit-skill-modal')?.classList.remove('hidden');
 }
 
 function closeEditSkillModal() {
     document.getElementById('edit-skill-modal')?.classList.add('hidden');
-    currentSkillId = null;
+    skillToEdit = null;
 }
 
 function saveEditedSkill() {
     showLoading();
-    const skill = skills.find(s => s.id === currentSkillId);
-    if (!skill) {
-        showToast('Skill not found', 'error');
-        hideLoading();
-        return;
-    }
-    const name = document.getElementById('edit-skill-name')?.value.trim();
-    const category = document.getElementById('edit-skill-category')?.value.trim() || 'Uncategorized';
-    const tags = document.getElementById('edit-skill-tags')?.value
-        .split(',')
-        .map(t => t.trim())
-        .filter(Boolean);
-    if (!name) {
-        showToast('Skill name is required', 'error');
-        hideLoading();
-        return;
-    }
-    skill.name = name;
-    skill.category = category;
-    skill.tags = tags;
+    if (!skillToEdit) return;
+    const skill = skills.find(s => s.id === skillToEdit);
+    if (!skill) return;
+    skill.name = document.getElementById('edit-skill-name')?.value.trim();
+    skill.category = document.getElementById('edit-skill-category')?.value.trim() || 'Uncategorized';
+    skill.tags = document.getElementById('edit-skill-tags')?.value.split(',').map(t => t.trim()).filter(t => t);
     saveState();
-    closeEditSkillModal();
     renderDashboard();
+    closeEditSkillModal();
     hideLoading();
 }
 
@@ -993,283 +1143,294 @@ async function deleteSkill(skillId) {
     skills = skills.filter(s => s.id !== skillId);
     saveState();
     renderDashboard();
+    showToast('Skill deleted successfully');
     hideLoading();
 }
 
-function viewSkill(skillId) {
-    currentSkillId = skillId;
+function togglePracticeDay(skillId, day) {
+    showLoading();
     const skill = skills.find(s => s.id === skillId);
     if (!skill) return;
-    const main = document.getElementById('main-content');
-    if (!main) return;
-    main.innerHTML = `
-        <button onclick="renderDashboard()" class="mb-4 bg-gray-200 dark:bg-gray-700 px-4 py-2 rounded-lg dark:text-white" aria-label="Back to dashboard">Back</button>
-        <h2 class="text-2xl font-bold dark:text-white mb-4">${skill.name}</h2>
-        <p class="text-gray-600 dark:text-gray-300 mb-2">Category: ${skill.category || 'Uncategorized'}</p>
-        <p class="text-gray-600 dark:text-gray-300 mb-4">Tags: ${skill.tags?.join(', ') || 'None'}</p>
-        <div class="mb-6">${renderChart(skill)}</div>
-        <div class="mb-6">${renderMilestones(skill)}</div>
-        <div class="mb-6">${renderPracticeTracker(skill)}</div>
-        <div class="mb-6">${renderReflections(skill)}</div>
-    `;
-}
-
-function renderChart(skill) {
-    const progressData = skill.progressLog?.map(log => ({
-        x: dayjs(log.date).toDate(),
-        y: log.progress
-    })) || [];
-    return `
-        <h3 class="text-lg font-semibold dark:text-white mb-2">Progress Over Time</h3>
-        <canvas id="progress-chart" class="w-full max-w-md mx-auto"></canvas>
-        <script>
-            if (progressChart) progressChart.destroy();
-            progressChart = new Chart(document.getElementById('progress-chart'), {
-                type: 'line',
-                data: {
-                    datasets: [{
-                        label: 'Progress',
-                        data: ${JSON.stringify(progressData)},
-                        borderColor: '${styledToSellMode && skill.tags?.includes('StyledToSell') ? '#ec4899' : '#3b82f6'}',
-                        fill: false
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    scales: {
-                        x: {
-                            type: 'time',
-                            time: {
-                                unit: 'day',
-                                displayFormats: { day: 'MMM d' }
-                            }
-                        },
-                        y: { min: 0, max: 100, title: { display: true, text: 'Progress (%)' } }
-                    }
-                }
-            });
-        </script>
-    `;
-}
-
-function renderMilestones(skill) {
-    return `
-        <h3 class="text-lg font-semibold dark:text-white mb-2">Milestones</h3>
-        <div class="flex flex-col gap-2 mb-4">
-            <input id="milestone-title" type="text" placeholder="Milestone title" class="p-2 rounded-lg border dark:bg-gray-900 dark:text-white" aria-label="Milestone title">
-            <input id="milestone-weight" type="number" min="1" max="10" placeholder="Weight (1-10)" class="p-2 rounded-lg border dark:bg-gray-900 dark:text-white" aria-label="Milestone weight">
-            <input id="milestone-deadline" type="date" class="p-2 rounded-lg border dark:bg-gray-900 dark:text-white" aria-label="Milestone deadline">
-            <button onclick="addMilestone('${skill.id}')" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 w-full sm:w-auto" aria-label="Add milestone">Add Milestone</button>
-        </div>
-        <div class="space-y-2">
-            ${skill.milestones.map(m => `
-                <div class="flex justify-between items-center p-2 border-b dark:border-gray-600">
-                    <div class="flex-1 min-w-0">
-                        <p class="dark:text-white ${m.completed ? 'line-through' : ''}">${m.title} (Weight: ${m.weight || 1})</p>
-                        <p class="text-sm text-gray-500 dark:text-gray-400">${m.deadline ? dayjs(m.deadline).format('MMM d, YYYY') : 'No deadline'}</p>
-                    </div>
-                    <div class="flex gap-2">
-                        <button onclick="toggleMilestone('${skill.id}', '${m.id}')" class="bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700" aria-label="${m.completed ? 'Unmark' : 'Mark'} complete">${m.completed ? 'Undo' : 'Complete'}</button>
-                        <button onclick="deleteMilestone('${skill.id}', '${m.id}')" class="bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700" aria-label="Delete milestone">Delete</button>
-                    </div>
-                </div>
-            `).join('')}
-        </div>
-    `;
+    if (!skill.weeklyPractice) skill.weeklyPractice = {};
+    skill.weeklyPractice[day] = !skill.weeklyPractice[day];
+    saveState();
+    renderSkillDetail(skillId);
+    hideLoading();
 }
 
 function addMilestone(skillId) {
     showLoading();
-    const skill = skills.find(s => s.id === skillId);
-    if (!skill) {
-        showToast('Skill not found', 'error');
-        hideLoading();
-        return;
-    }
-    const title = document.getElementById('milestone-title')?.value.trim();
-    const weight = parseInt(document.getElementById('milestone-weight')?.value) || 1;
+    const title = document.getElementById('milestone-text')?.value.trim();
+    const weight = Math.max(1, Math.min(10, parseInt(document.getElementById('milestone-weight')?.value) || 1));
     const deadline = document.getElementById('milestone-deadline')?.value;
     if (!title) {
-        showToast('Milestone title is required', 'error');
+        showToast('Milestone title cannot be empty', 'error');
         hideLoading();
         return;
     }
+    if (deadline && dayjs(deadline).isBefore(dayjs())) {
+        showToast('Deadline must be in the future', 'error');
+        hideLoading();
+        return;
+    }
+    const skill = skills.find(s => s.id === skillId);
+    if (!skill) return;
     skill.milestones.push({
         id: uuidv4(),
         title,
-        weight: Math.max(1, Math.min(10, weight)),
+        weight,
         deadline,
         completed: false,
         createdAt: new Date().toISOString()
     });
-    logDailyProgress(skill);
     saveState();
-    document.getElementById('milestone-title').value = '';
-    document.getElementById('milestone-weight').value = '';
-    document.getElementById('milestone-deadline').value = '';
-    viewSkill(skillId);
+    renderSkillDetail(skillId);
+    if (deadline && Notification.permission === 'granted') {
+        scheduleNotification(skillId, skill.milestones[skill.milestones.length - 1].id, title, deadline);
+    }
+    hideLoading();
+}
+
+function scheduleNotification(skillId, milestoneId, title, deadline) {
+    const dueDate = dayjs(deadline);
+    const notificationDate = dueDate.subtract(1, 'day');
+    const timeUntilNotification = notificationDate.diff(dayjs());
+    if (timeUntilNotification > 0) {
+        const cappedTimeout = Math.min(timeUntilNotification, 2147483647);
+        setTimeout(() => {
+            if (Notification.permission === 'granted') {
+                new Notification(`Reminder: Milestone "${title}" is due tomorrow!`);
+            }
+        }, cappedTimeout);
+    }
+}
+
+function editMilestone(skillId, milestoneId) {
+    const skill = skills.find(s => s.id === skillId);
+    const milestone = skill?.milestones.find(m => m.id === milestoneId);
+    if (!milestone) return;
+    const newTitle = prompt('Edit milestone title:', milestone.title);
+    if (newTitle?.trim()) {
+        milestone.title = newTitle.trim();
+        const newDeadline = prompt('Edit deadline (YYYY-MM-DD):', milestone.deadline || '');
+        if (newDeadline) {
+            if (dayjs(newDeadline).isBefore(dayjs())) {
+                showToast('Deadline must be in the future', 'error');
+                return;
+            }
+            milestone.deadline = newDeadline;
+        } else {
+            delete milestone.deadline;
+        }
+        saveState();
+        renderSkillDetail(skillId);
+        if (newDeadline && Notification.permission === 'granted') {
+            scheduleNotification(skillId, milestoneId, newTitle, newDeadline);
+        }
+    }
+}
+
+async function deleteMilestone(skillId, milestoneId) {
+    const confirmed = await showToastConfirm('Are you sure you want to delete this milestone?');
+    if (!confirmed) return;
+    showLoading();
+    const skill = skills.find(s => s.id === skillId);
+    if (!skill) return;
+    skill.milestones = skill.milestones.filter(m => m.id !== milestoneId);
+    saveState();
+    renderSkillDetail(skillId);
+    showToast('Milestone deleted successfully');
     hideLoading();
 }
 
 function toggleMilestone(skillId, milestoneId) {
     showLoading();
     const skill = skills.find(s => s.id === skillId);
-    if (!skill) {
-        showToast('Skill not found', 'error');
-        hideLoading();
-        return;
-    }
-    const milestone = skill.milestones.find(m => m.id === milestoneId);
-    if (!milestone) {
-        showToast('Milestone not found', 'error');
-        hideLoading();
-        return;
-    }
+    const milestone = skill?.milestones.find(m => m.id === milestoneId);
+    if (!skill || !milestone) return;
     milestone.completed = !milestone.completed;
     if (milestone.completed) {
-        userXP += milestone.weight * 10;
+        userXP += 10 * (milestone.weight || 1);
         if (userXP >= userLevel * 100) {
             userLevel++;
-            userXP = userXP % (userLevel * 100);
-            showToast(`🎉 Leveled up to ${userLevel}!`);
+            if (Notification.permission === 'granted') {
+                new Notification(`🎉 Leveled up to Level ${userLevel}!`);
+            } else {
+                showToast(`🎉 Leveled up to Level ${userLevel}!`);
+            }
         }
-        checkStreak();
     }
     logDailyProgress(skill);
     saveState();
-    viewSkill(skillId);
+    renderSkillDetail(skillId);
     hideLoading();
 }
 
-function deleteMilestone(skillId, milestoneId) {
-    showToastConfirm('Are you sure you want to delete this milestone?').then(confirmed => {
-        if (!confirmed) return;
-        showLoading();
-        const skill = skills.find(s => s.id === skillId);
-        if (!skill) {
-            showToast('Skill not found', 'error');
-            hideLoading();
-            return;
-        }
-        skill.milestones = skill.milestones.filter(m => m.id !== milestoneId);
-        logDailyProgress(skill);
-        saveState();
-        viewSkill(skillId);
-        hideLoading();
-    });
-}
-
-function renderPracticeTracker(skill) {
-    const today = dayjs().format('YYYY-MM-DD');
-    const practiceToday = skill.practiceHistory?.includes(today);
-    return `
-        <h3 class="text-lg font-semibold dark:text-white mb-2">Practice Tracker</h3>
-        <button onclick="markPractice('${skill.id}')" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 w-full sm:w-auto mb-4 ${practiceToday ? 'opacity-50 cursor-not-allowed' : ''}" ${practiceToday ? 'disabled' : ''} aria-label="Mark practice for today">Mark Today's Practice</button>
-        <div class="mb-4">${renderHeatmap(skill)}</div>
-    `;
-}
-
-function markPractice(skillId) {
+function markTodayPracticed(skillId) {
     showLoading();
     const skill = skills.find(s => s.id === skillId);
-    if (!skill) {
-        showToast('Skill not found', 'error');
+    if (!skill) return;
+    const today = dayjs().format('YYYY-MM-DD');
+    if (!skill.practiceHistory) skill.practiceHistory = [];
+    if (skill.practiceHistory.includes(today)) {
+        showToast('Today is already marked as practiced');
         hideLoading();
         return;
     }
-    const today = dayjs().format('YYYY-MM-DD');
-    if (!skill.practiceHistory) skill.practiceHistory = [];
-    if (!skill.practiceHistory.includes(today)) {
-        skill.practiceHistory.push(today);
-        const week = dayjs().startOf('week').format('YYYY-MM-DD');
-        if (!skill.weeklyPractice[week]) skill.weeklyPractice[week] = 0;
-        skill.weeklyPractice[week]++;
-        userXP += 5;
-        if (userXP >= userLevel * 100) {
-            userLevel++;
-            userXP = userXP % (userLevel * 100);
-            showToast(`🎉 Leveled up to ${userLevel}!`);
-        }
-        checkStreak();
-        logDailyProgress(skill);
-        saveState();
-    }
-    viewSkill(skillId);
-    hideLoading();
-}
-
-function checkStreak() {
-    const today = dayjs().format('YYYY-MM-DD');
+    skill.practiceHistory.push(today);
     const yesterday = dayjs().subtract(1, 'day').format('YYYY-MM-DD');
-    const hasPracticedToday = skills.some(s => s.practiceHistory?.includes(today));
-    const hasPracticedYesterday = lastActivityDate === yesterday;
-    if (hasPracticedToday) {
-        if (hasPracticedYesterday || !lastActivityDate) {
-            streak++;
-        } else if (lastActivityDate !== today) {
-            streak = 1;
+    if (lastActivityDate === yesterday) {
+        streak++;
+        if (streak >= 5 && Notification.permission === 'granted') {
+            new Notification('🎉 You’ve maintained a 5-day streak!');
         }
-        lastActivityDate = today;
-    } else if (!hasPracticedYesterday && lastActivityDate !== today) {
-        streak = 0;
+    } else if (lastActivityDate !== today) {
+        streak = 1;
+        if (lastActivityDate && Notification.permission === 'granted') {
+            new Notification('😢 Streak broken! Start a new one today.');
+        }
     }
+    lastActivityDate = today;
     saveState();
-}
-
-function renderHeatmap(skill) {
-    const start = dayjs().subtract(90, 'day').startOf('day');
-    const days = Array.from({ length: 90 }, (_, i) => start.add(i, 'day').format('YYYY-MM-DD'));
-    return `
-        <div class="grid grid-cols-10 gap-1">
-            ${days.map(day => `
-                <div class="w-4 h-4 rounded heatmap-day ${skill.practiceHistory?.includes(day) ? 'practiced' : ''}" title="${dayjs(day).format('MMM d, YYYY')}"></div>
-            `).join('')}
-        </div>
-    `;
-}
-
-function renderReflections(skill) {
-    return `
-        <h3 class="text-lg font-semibold dark:text-white mb-2">Reflections</h3>
-        <div class="flex flex-col gap-2 mb-4">
-            <textarea id="reflection-text" placeholder="What did you learn today?" class="p-2 rounded-lg border dark:bg-gray-900 dark:text-white h-24" aria-label="Reflection text"></textarea>
-            <button onclick="addReflection('${skill.id}')" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 w-full sm:w-auto" aria-label="Add reflection">Add Reflection</button>
-        </div>
-        <div class="space-y-2">
-            ${skill.reflections?.map(r => `
-                <div class="p-2 border-b dark:border-gray-600">
-                    <p class="text-sm text-gray-500 dark:text-gray-400">${dayjs(r.date).format('MMM d, YYYY')}</p>
-                    <p class="dark:text-white">${r.text}</p>
-                </div>
-            `).join('') || '<p class="text-gray-600 dark:text-gray-300">No reflections yet.</p>'}
-        </div>
-    `;
+    renderSkillDetail(skillId);
+    hideLoading();
 }
 
 function addReflection(skillId) {
     showLoading();
-    const skill = skills.find(s => s.id === skillId);
-    if (!skill) {
-        showToast('Skill not found', 'error');
-        hideLoading();
-        return;
-    }
-    const text = document.getElementById('reflection-text')?.value.trim();
+    const text = document.getElementById('new-reflection')?.value.trim();
     if (!text) {
-        showToast('Reflection text is required', 'error');
+        showToast('Reflection cannot be empty', 'error');
         hideLoading();
         return;
     }
-    if (!skill.reflections) skill.reflections = [];
+    const skill = skills.find(s => s.id === skillId);
+    if (!skill) return;
     skill.reflections.push({
         id: uuidv4(),
         text,
         date: new Date().toISOString()
     });
+    document.getElementById('new-reflection').value = '';
     saveState();
-    document.getElementById('reflection-text').value = '';
-    viewSkill(skillId);
+    renderSkillDetail(skillId);
     hideLoading();
+}
+
+function editReflection(skillId, reflectionId) {
+    const skill = skills.find(s => s.id === skillId);
+    const reflection = skill?.reflections.find(r => r.id === reflectionId);
+    if (!reflection) return;
+    const newText = prompt('Edit reflection:', reflection.text);
+    if (newText?.trim()) {
+        reflection.text = newText.trim();
+        saveState();
+        renderSkillDetail(skillId);
+    }
+}
+
+async function deleteReflection(skillId, reflectionId) {
+    const confirmed = await showToastConfirm('Are you sure you want to delete this reflection?');
+    if (!confirmed) return;
+    showLoading();
+    const skill = skills.find(s => s.id === skillId);
+    if (!skill) return;
+    skill.reflections = skill.reflections.filter(r => r.id === reflectionId);
+    saveState();
+    renderSkillDetail(skillId);
+    showToast('Reflection deleted successfully');
+    hideLoading();
+}
+
+let currentShareData = { name: '', progress: 0, image: null };
+
+function shareSkillCard(skillId) {
+    showLoading();
+    const skill = skills.find(s => s.id === skillId);
+    const card = document.getElementById(`skill-card-${skillId}`);
+    if (!skill || !card) {
+        showToast('Error preparing share', 'error');
+        hideLoading();
+        return;
+    }
+    const progress = calculateProgress(skill);
+    const message = `I’ve made ${progress}% progress on ${skill.name}! #MomentumApp`;
+    html2canvas(card, { useCORS: true, scale: window.devicePixelRatio }).then(canvas => {
+        const imgData = canvas.toDataURL('image/png');
+        currentShareData = { name: skill.name, progress, message, image: imgData };
+        document.getElementById('share-message').innerText = message;
+        document.getElementById('share-modal')?.classList.remove('hidden');
+        hideLoading();
+    }).catch(error => {
+        console.error('Error capturing skill card:', error);
+        showToast('Error preparing share', 'error');
+        hideLoading();
+    });
+}
+
+function closeShareModal() {
+    document.getElementById('share-modal')?.classList.add('hidden');
+}
+
+function shareTo(platform) {
+    const { message } = currentShareData;
+    const url = encodeURIComponent('https://momentum.app');
+    let link = '';
+    if (platform === 'twitter') {
+        link = `https://twitter.com/intent/tweet?text=${encodeURIComponent(message)}&url=${url}`;
+    } else if (platform === 'facebook') {
+        link = `https://www.facebook.com/sharer/sharer.php?u=${url}`;
+    } else if (platform === 'linkedin') {
+        link = `https://www.linkedin.com/sharing/share-offsite/?url=${url}&summary=${encodeURIComponent(message)}`;
+    }
+    if (link) window.open(link, '_blank');
+    closeShareModal();
+}
+
+function copyShareLink() {
+    navigator.clipboard.writeText('https://momentum.app').then(() => {
+        showToast('🔗 Link copied to clipboard');
+        closeShareModal();
+    }).catch(() => {
+        showToast('Error copying link', 'error');
+    });
+}
+
+function downloadCardImage() {
+    const link = document.createElement('a');
+    link.download = `${currentShareData.name}-summary.png`;
+    link.href = currentShareData.image;
+    link.click();
+}
+
+function exportData(format) {
+    showLoading();
+    let data, filename, type;
+    if (format === 'json') {
+        data = JSON.stringify(skills, null, 2);
+        filename = 'momentum-skills.json';
+        type = 'application/json';
+    } else {
+        let csv = 'ID,Name,Category,Tags,Milestones,Reflections,PracticeDays\n';
+        skills.forEach(skill => {
+            csv += `"${skill.id}","${skill.name.replace(/"/g, '""')}","${skill.category || 'Uncategorized'}","${skill.tags?.join(';') || ''}",${skill.milestones.length},${skill.reflections.length},${skill.practiceHistory?.length || 0}\n`;
+        });
+        data = csv;
+        filename = 'momentum-skills.csv';
+        type = 'text/csv';
+    }
+    const blob = new Blob([data], { type });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    link.click();
+    URL.revokeObjectURL(url);
+    hideLoading();
+}
+
+function viewSkill(skillId) {
+    renderSkillDetail(skillId);
 }
 
 function toggleSkillView() {
@@ -1278,129 +1439,18 @@ function toggleSkillView() {
     renderDashboard();
 }
 
-function attachSearchInput(filter, type, sort) {
-    const searchInput = document.getElementById('search-skills');
-    if (!searchInput) return;
-    let timeout;
-    searchInput.oninput = () => {
-        clearTimeout(timeout);
-        timeout = setTimeout(() => {
-            renderDashboard(filter, type, sort, searchInput.value);
-        }, 300);
-    };
-}
-
-function updateCategoryDropdown() {
-    const categoryFilter = document.getElementById('category-filter');
-    if (categoryFilter) {
-        const categories = [...new Set(skills.map(s => s.category || 'Uncategorized'))];
-        categoryFilter.innerHTML = `<option value="">All Categories</option>` + categories.map(c => `<option value="${c}">${c}</option>`).join('');
+function toggleDarkMode() {
+    darkMode = !darkMode;
+    document.body.classList.toggle('dark');
+    const iconBtn = document.getElementById('dark-mode-toggle');
+    if (iconBtn) {
+        iconBtn.className = `fas ${darkMode ? 'fa-sun' : 'fa-moon'} text-gray-600 dark:text-gray-300`;
     }
-}
-
-function exportData(format) {
-    showLoading();
-    const data = {
-        skills,
-        userXP,
-        userLevel,
-        streak,
-        lastActivityDate,
-        styledLogs,
-        styledToSellMode
-    };
-    if (format === 'json') {
-        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = 'momentum_data.json';
-        link.click();
-        URL.revokeObjectURL(url);
-    } else if (format === 'csv') {
-        let csv = 'Skill,Category,Tags,Progress,Milestones,PracticeDays\n';
-        skills.forEach(s => {
-            csv += `"${s.name.replace(/"/g, '""')}","${s.category || 'Uncategorized'}","${s.tags?.join(';') || ''}",${calculateProgress(s)},${s.milestones.length},${s.practiceHistory?.length || 0}\n`;
-        });
-        const blob = new Blob([csv], { type: 'text/csv' });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = 'momentum_skills.csv';
-        link.click();
-        URL.revokeObjectURL(url);
+    const textBtn = document.querySelector('button[onclick*="toggleDarkMode"]');
+    if (textBtn) {
+        textBtn.innerHTML = darkMode ? '☀️ Toggle Light Mode' : '🌙 Toggle Dark Mode';
     }
-    hideLoading();
-}
-
-function shareSkillCard(skillId) {
-    showLoading();
-    const skill = skills.find(s => s.id === skillId);
-    if (!skill) {
-        showToast('Skill not found', 'error');
-        hideLoading();
-        return;
-    }
-    const card = document.getElementById(`skill-card-${skillId}`);
-    if (!card) {
-        showToast('Skill card not found', 'error');
-        hideLoading();
-        return;
-    }
-    html2canvas(card, { useCORS: true, scale: window.devicePixelRatio }).then(canvas => {
-        const shareMessage = `Check out my progress on ${skill.name}! ${calculateProgress(skill)}% complete. #MomentumApp`;
-        document.getElementById('share-message').innerText = shareMessage;
-        window.shareImage = canvas.toDataURL('image/png');
-        document.getElementById('share-modal')?.classList.remove('hidden');
-        hideLoading();
-    }).catch(err => {
-        console.error('html2canvas error:', err);
-        showToast('Error generating share image', 'error');
-        hideLoading();
-    });
-}
-
-function shareTo(platform) {
-    const message = document.getElementById('share-message')?.innerText;
-    if (!message) return;
-    let url;
-    if (platform === 'twitter') {
-        url = `https://twitter.com/intent/tweet?text=${encodeURIComponent(message)}`;
-    } else if (platform === 'facebook') {
-        url = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(window.location.href)}&quote=${encodeURIComponent(message)}`;
-    } else if (platform === 'linkedin') {
-        url = `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(window.location.href)}&title=${encodeURIComponent(message)}`;
-    }
-    window.open(url, '_blank');
-    closeShareModal();
-}
-
-function copyShareLink() {
-    const message = document.getElementById('share-message')?.innerText;
-    if (!message) return;
-    navigator.clipboard.writeText(message).then(() => {
-        showToast('Link copied to clipboard');
-        closeShareModal();
-    }).catch(() => {
-        showToast('Error copying link', 'error');
-    });
-}
-
-function downloadCardImage() {
-    if (!window.shareImage) {
-        showToast('No image to download', 'error');
-        return;
-    }
-    const link = document.createElement('a');
-    link.href = window.shareImage;
-    link.download = 'skill_card.png';
-    link.click();
-    closeShareModal();
-}
-
-function closeShareModal() {
-    document.getElementById('share-modal')?.classList.add('hidden');
-    delete window.shareImage;
+    saveState();
 }
 
 function openStyledModeModal() {
@@ -1422,6 +1472,10 @@ function closeLoginModal() {
     document.getElementById('login-password').value = '';
     document.getElementById('signup-email').value = '';
     document.getElementById('signup-password').value = '';
+    document.getElementById('login-tab').classList.add('active');
+    document.getElementById('signup-tab').classList.remove('active');
+    document.getElementById('login-form').classList.remove('hidden');
+    document.getElementById('signup-form').classList.add('hidden');
 }
 
 function openFeedback() {
@@ -1430,18 +1484,19 @@ function openFeedback() {
 
 function closeFeedback() {
     document.getElementById('feedback-modal')?.classList.add('hidden');
-    document.getElementById('feedback-text').value = '';
 }
 
 function submitFeedback() {
-    const feedback = document.getElementById('feedback-text')?.value.trim();
-    if (!feedback) {
-        showToast('Feedback cannot be empty', 'error');
+    showLoading();
+    const text = document.getElementById('feedback-text')?.value.trim();
+    if (!text) {
+        showToast('Please enter some feedback', 'error');
+        hideLoading();
         return;
     }
-    console.log('Feedback submitted:', feedback);
     showToast('Thank you for your feedback!');
     closeFeedback();
+    hideLoading();
 }
 
 function openHelp() {
@@ -1452,36 +1507,36 @@ function closeHelp() {
     document.getElementById('help-modal')?.classList.add('hidden');
 }
 
-// Initialize app
-async function init() {
-    showLoading();
-    document.body.classList.toggle('dark', darkMode);
-    const toggleIcon = document.getElementById('dark-mode-toggle');
-    if (toggleIcon) {
-        toggleIcon.className = darkMode ? 'fas fa-sun text-yellow-400' : 'fas fa-moon text-gray-600 dark:text-gray-300';
+window.onload = async () => {
+    if (Notification.permission !== 'granted') {
+        Notification.requestPermission();
+    }
+    if (darkMode) {
+        document.body.classList.add('dark');
+        const iconBtn = document.getElementById('dark-mode-toggle');
+        if (iconBtn) iconBtn.className = 'fas fa-sun text-gray-600 dark:text-gray-300';
+    }
+    document.getElementById('fab')?.addEventListener('click', openAddSkillModal);
+    if (styledToSellMode) {
+        document.body.classList.add('styled-mode');
     }
     const { data: { user: authUser } } = await supabase.auth.getUser();
     if (authUser) {
         user = authUser;
         await syncUserData();
     }
-    if (!localStorage.getItem('hasOnboarded') && !skills.length) {
+    if (!localStorage.getItem('hasOnboarded')) {
         document.getElementById('onboarding-modal')?.classList.remove('hidden');
-    } else {
-        renderDashboard();
     }
-    document.getElementById('fab')?.addEventListener('click', openAddSkillModal);
-    if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('/service-worker.js').then(reg => {
-            console.log('[PWA] Service Worker registered', reg);
-        }).catch(err => {
-            console.error('[PWA] Service Worker registration failed:', err);
-        });
-    }
-    if (Notification.permission !== 'granted' && Notification.permission !== 'denied') {
-        Notification.requestPermission();
-    }
-    hideLoading();
+    renderDashboard();
+};
+
+if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/service-worker.js')
+        .then(reg => console.log('[PWA] Service Worker registered', reg))
+        .catch(err => console.error('[PWA] Registration failed', err));
 }
 
-init();
+if (window.matchMedia('(display-mode: standalone)').matches) {
+    document.body.classList.add('standalone');
+}
