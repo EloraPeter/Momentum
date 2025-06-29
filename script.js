@@ -13,6 +13,8 @@ const SUPABASE_URL = 'https://uspfmxwzfjludzgofzdk.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVzcGZteHd6ZmpsdWR6Z29memRrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTExMTIyODEsImV4cCI6MjA2NjY4ODI4MX0.qqZ1bMUq9TTWALecR5I4We-69vJOczId2tEXLFuQLVk';
 const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
+window.currentEditingMilestoneId = null;
+
 // State variables
 let skills = JSON.parse(localStorage.getItem('skills')) || [];
 let currentSkillId = null;
@@ -1262,7 +1264,6 @@ function renderMilestones(skill) {
     `;
 }
 
-
 function addMilestone(skillId) {
     showLoading();
     const skill = skills.find(s => s.id === skillId);
@@ -1295,7 +1296,7 @@ function addMilestone(skillId) {
         } else {
             showToast('Milestone not found', 'error');
         }
-        window.currentEditingMilestoneId = null;
+        window.currentEditingMilestoneId = null; // Reset edit mode
     } else {
         if (!skill.milestones) skill.milestones = [];
         skill.milestones.push({
@@ -1368,8 +1369,11 @@ function editMilestone(skillId, milestoneId) {
     document.getElementById('milestone-weight').value = milestone.weight || 1;
     document.getElementById('milestone-deadline').value = milestone.deadline || '';
 
-    // Store milestone ID for editing
+    // Set edit mode
     window.currentEditingMilestoneId = milestoneId;
+
+    // Re-render to update button text
+    viewSkill(skillId);
 
     showToast('Edit the fields and click "Update Milestone" to save.', 'info');
 }
