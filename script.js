@@ -205,7 +205,7 @@ async function loginWithMagicLink(email) {
         }
         const { error } = await supabase.auth.signInWithOtp({
             email,
-            options: { emailRedirectTo: window.location.origin }
+            options: { emailRedirectTo: "https://elorapeter.github.io/Momentum/" }
         });
         if (error) {
             showToast(`Error sending magic link: ${error.message}`, 'error');
@@ -1621,7 +1621,6 @@ async function deleteReflection(skillId, reflectionId) {
     hideLoading();
 }
 
-
 function toggleSkillView() {
     const currentView = localStorage.getItem('skillView') || 'grid';
     localStorage.setItem('skillView', currentView === 'grid' ? 'list' : 'grid');
@@ -1814,6 +1813,18 @@ async function init() {
         user = authUser;
         await syncUserData();
     }
+    supabase.auth.onAuthStateChange(async (event, session) => {
+        if (event === 'SIGNED_IN' && session) {
+            user = session.user;
+            await syncUserData();
+            updateNavAndSidebar();
+            renderDashboard();
+        } else if (event === 'SIGNED_OUT') {
+            user = null;
+            updateNavAndSidebar();
+            renderDashboard();
+        }
+    });
     if (!localStorage.getItem('hasOnboarded') && !skills.length) {
         document.getElementById('onboarding-modal')?.classList.remove('hidden');
     } else {
