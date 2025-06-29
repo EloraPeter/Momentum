@@ -1217,8 +1217,8 @@ function checkStreak() {
 }
 
 function renderHeatmap(skill) {
-    const start = dayjs().subtract(90, 'day').startOf('day');
-    const days = Array.from({ length: 90 }, (_, i) => start.add(i, 'day').format('YYYY-MM-DD'));
+    const start = dayjs().subtract(84, 'day').startOf('day');
+    const days = Array.from({ length: 84 }, (_, i) => start.add(i, 'day').format('YYYY-MM-DD'));
 
     return `
         <div class="grid grid-cols-12 gap-1">
@@ -1226,7 +1226,7 @@ function renderHeatmap(skill) {
                 const isPracticed = skill.practiceHistory?.includes(day);
                 return `
                     <div 
-                        class="w-4 h-3 rounded heatmap-day ${isPracticed ? 'practiced' : ''}" 
+                        class="w-5 h-5 rounded heatmap-day ${isPracticed ? 'practiced' : ''}" 
                         title="${dayjs(day).format('MMM D, YYYY')}">
                     </div>
                 `;
