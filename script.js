@@ -1315,6 +1315,33 @@ function addReflection(skillId) {
     hideLoading();
 }
 
+function editReflection(skillId, reflectionId) {
+    const skill = skills.find(s => s.id === skillId);
+    const reflection = skill?.reflections.find(r => r.id === reflectionId);
+    if (!reflection) return;
+
+    const newText = prompt('Edit reflection:', reflection.text);
+    if (newText?.trim()) {
+        reflection.text = newText.trim();
+        saveState();
+        viewSkill(skillId); // ✅ FIXED: was renderSkillDetail()
+    }
+}
+
+async function deleteReflection(skillId, reflectionId) {
+    const confirmed = await showToastConfirm('Are you sure you want to delete this reflection?');
+    if (!confirmed) return;
+
+    showLoading();
+    const skill = skills.find(s => s.id === skillId);
+    if (!skill) return;
+
+    skill.reflections = skill.reflections.filter(r => r.id !== reflectionId);
+    saveState();
+    viewSkill(skillId); // ✅ FIXED: was renderSkillDetail()
+    showToast('Reflection deleted successfully');
+    hideLoading();
+}
 
 
 function toggleSkillView() {
