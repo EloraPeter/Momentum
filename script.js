@@ -814,8 +814,6 @@ function renderTopBar(filter, type, sort, searchQuery) {
                     <button onclick="exportData('json')" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 w-full sm:w-auto" aria-label="Export as JSON">Export JSON</button>
                     <button onclick="exportData('csv')" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 w-full sm:w-auto" aria-label="Export as CSV">Export CSV</button>
                     <button onclick="toggleSkillView()" class="bg-gray-200 dark:bg-gray-800 dark:text-white px-4 py-2 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-700 w-full sm:w-auto" aria-label="Toggle view">${icon}</button>
-                    ${!styledToSellMode ? `<button onclick="openStyledModeModal()" class="bg-pink-500 text-white px-4 py-2 rounded-lg hover:bg-pink-600 w-full sm:w-auto" aria-label="Unlock Styled Mode">Unlock Styled Mode</button>` : ''}
-                    ${!user ? `<button onclick="openLoginModal()" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 w-full sm:w-auto" aria-label="Login">Login / Signup</button>` : `<button onclick="logout()" class="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 w-full sm:w-auto" aria-label="Logout">Logout</button>`}
                 </div>
             </div>
         </div>
