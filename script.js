@@ -753,29 +753,42 @@ function addStyledLog() {
         return;
     }
 
-    const log = {
-        id: uuidv4(),
-        post,
-        performance,
-        learn,
-        date: new Date().toISOString()  // ISO for consistency
-    };
+    const isEditing = !!window.currentEditingLogId;
 
-    styledLogs.push(log);
-    saveState();
+    if (isEditing) {
+        const index = styledLogs.findIndex(log => log.id === window.currentEditingLogId);
+        if (index !== -1) {
+            styledLogs[index] = {
+                ...styledLogs[index],
+                post,
+                performance,
+                learn,
+                date: new Date().toISOString() // Optional: keep original date if you prefer
+            };
+        }
+        window.currentEditingLogId = null;
+        showToast('Log updated!', 'success');
+    } else {
+        const log = {
+            id: uuidv4(),
+            post,
+            performance,
+            learn,
+            date: new Date().toISOString()
+        };
+        styledLogs.push(log);
+        showToast('Log added successfully!', 'success');
+    }
 
-    // Clear inputs
+    // Clear input fields
     document.getElementById('post-today').value = '';
     document.getElementById('post-performance').value = '';
     document.getElementById('post-learn').value = '';
 
-    // Toast confirmation
-    showToast('Log added successfully!', 'success');
-
+    saveState();
     renderDashboard();
     hideLoading();
 }
-
 
 function downloadStyledLogs() {
     if (!styledLogs.length) {
@@ -804,6 +817,29 @@ function downloadStyledLogs() {
     URL.revokeObjectURL(url);
 }
 
+function editStyledLog(id) {
+    const log = styledLogs.find(l => l.id === id);
+    if (!log) return showToast('Log not found', 'error');
+
+    // Prefill input fields
+    document.getElementById('post-today').value = log.post;
+    document.getElementById('post-performance').value = log.performance;
+    document.getElementById('post-learn').value = log.learn;
+
+    // Store ID in a temporary variable
+    window.currentEditingLogId = id;
+
+    showToast('Edit the fields and click "Add Log" to update.', 'info');
+}
+
+function deleteStyledLog(id) {
+    if (!confirm('Are you sure you want to delete this log?')) return;
+
+    styledLogs = styledLogs.filter(log => log.id !== id);
+    saveState();
+    renderDashboard();
+    showToast('Log deleted!', 'success');
+}
 
 function getFilteredSkills(filter, type, searchQuery) {
     let result = [...skills];
