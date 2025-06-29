@@ -1003,7 +1003,7 @@ function viewSkill(skillId) {
     const main = document.getElementById('main-content');
     if (!main) return;
     main.innerHTML = `
-        <button onclick="renderDashboard()" class="mb-4 bg-gray-200 dark:bg-gray-700 px-4 py-2 rounded-lg dark:text-white" aria-label="Back to dashboard">Back</button>
+        <button onclick="renderDashboard()" class="mb-4 text-blue-600 dark:text-blue-400 hover:underline" aria-label="Back to dashboard">← Back to Dashboard</button>
         <h2 class="text-2xl font-bold dark:text-white mb-4">${skill.name}</h2>
         <p class="text-gray-600 dark:text-gray-300 mb-2">Category: ${skill.category || 'Uncategorized'}</p>
         <p class="text-gray-600 dark:text-gray-300 mb-4">Tags: ${skill.tags?.join(', ') || 'None'}</p>
@@ -1094,6 +1094,7 @@ function exportChart(skillId) {
     link.download = `${skillId}-progress-chart.png`;
     link.href = canvas.toDataURL('image/png');
     link.click();
+    showToast('Chart downloaded successfully!', 'success');
 }
 
 
