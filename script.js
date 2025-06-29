@@ -26,12 +26,58 @@ let styledLogs = JSON.parse(localStorage.getItem('styledLogs')) || [];
 let styledToSellMode = localStorage.getItem('styledToSellMode') === 'true';
 let user = null;
 
-// Predefined Styled to Sell goals
+// Predefined Styled to Sell goals with preset milestones aligned with Styled to Sell Kit
 const styledGoals = [
-    { title: "Post a content carousel", category: "Visibility", tags: ['StyledToSell'] },
-    { title: "Promote my offer", category: "Sales", tags: ['StyledToSell'] },
-    { title: "Share a client win", category: "Credibility", tags: ['StyledToSell'] },
-    { title: "Post a behind-the-scenes", category: "Connection", tags: ['StyledToSell'] }
+    {
+        title: "Create a brand identity",
+        category: "Branding",
+        tags: ['StyledToSell'],
+        milestones: [
+            { title: "Write a brand bio using the 'I help' formula", weight: 3, deadline: null, completed: false },
+            { title: "Choose a brand palette and font combo", weight: 3, deadline: null, completed: false },
+            { title: "Apply brand style to one Canva post", weight: 4, deadline: null, completed: false }
+        ]
+    },
+    {
+        title: "Post a content carousel",
+        category: "Visibility",
+        tags: ['StyledToSell'],
+        milestones: [
+            { title: "Plan 3-5 carousel slides with value or tips", weight: 3, deadline: null, completed: false },
+            { title: "Design carousel using Canva template", weight: 4, deadline: null, completed: false },
+            { title: "Share carousel on social media with caption", weight: 3, deadline: null, completed: false }
+        ]
+    },
+    {
+        title: "Promote my offer",
+        category: "Sales",
+        tags: ['StyledToSell'],
+        milestones: [
+            { title: "Define offer details and benefits", weight: 3, deadline: null, completed: false },
+            { title: "Create 'What I Offer' post in Canva", weight: 4, deadline: null, completed: false },
+            { title: "Post offer with a clear call to action", weight: 3, deadline: null, completed: false }
+        ]
+    },
+    {
+        title: "Share a client win",
+        category: "Credibility",
+        tags: ['StyledToSell'],
+        milestones: [
+            { title: "Collect a client testimonial or feedback", weight: 3, deadline: null, completed: false },
+            { title: "Design testimonial post in Canva", weight: 3, deadline: null, completed: false },
+            { title: "Share testimonial on social media", weight: 4, deadline: null, completed: false }
+        ]
+    },
+    {
+        title: "Post a behind-the-scenes",
+        category: "Connection",
+        tags: ['StyledToSell'],
+        milestones: [
+            { title: "Identify a behind-the-scenes moment", weight: 2, deadline: null, completed: false },
+            { title: "Create BTS content in Canva or photo", weight: 4, deadline: null, completed: false },
+            { title: "Post BTS with authentic caption", weight: 4, deadline: null, completed: false }
+        ]
+    }
 ];
 
 // Save state to localStorage and Supabase
@@ -296,7 +342,14 @@ function unlockStyledMode() {
                     name: goal.title,
                     category: goal.category,
                     tags: goal.tags,
-                    milestones: [],
+                    milestones: goal.milestones.map(m => ({
+                        id: uuidv4(),
+                        title: m.title,
+                        weight: m.weight,
+                        deadline: m.deadline,
+                        completed: m.completed,
+                        createdAt: new Date().toISOString()
+                    })),
                     reflections: [],
                     progressLog: [],
                     practiceHistory: [],
