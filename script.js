@@ -724,7 +724,7 @@ function renderStyledTracker() {
                 <div class="mt-4">
                     ${styledLogs.slice().reverse().map(log => `
                         <div class="p-4 border-b dark:border-gray-600">
-                            <p class="text-sm text-gray-500 dark:text-gray-400">${dayjs(log.date).format('MMM d, YYYY')}</p>
+                            <p class="text-sm text-gray-500 dark:text-gray-400">${dayjs(log.date).format('MMM D, YYYY')}</p>
                             <p class="dark:text-white"><strong>Post:</strong> ${log.post}</p>
                             <p class="dark:text-white"><strong>Performance:</strong> ${log.performance}</p>
                             <p class="dark:text-white"><strong>Learned:</strong> ${log.learn}</p>
