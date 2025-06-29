@@ -33,7 +33,7 @@ Open Momentum in a modern browser.
 Complete the onboarding wizard to add your first skill.
 Optionally sign up or log in (via email or magic link) for cross-device syncing.
 Add skills, set milestones, log daily practice, and build momentum!
-Unlock Styled to Sell Mode with the code from the Styled to Sell Kit to access structured creative goals. Don’t have the Kit?  href="https://selar.com/17h5n6"> Get it here.</a>
+Unlock Styled to Sell Mode with the code from the Styled to Sell Kit to access structured creative goals. Don’t have the Kit? <a href="https://selar.com/17h5n6"> Get it here.</a>
 
 Installation
 
