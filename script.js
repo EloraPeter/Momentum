@@ -1366,7 +1366,13 @@ function editMilestone(skillId, milestoneId) {
         return;
     }
 
-    // Ensure input fields exist
+    // Set edit mode first
+    window.currentEditingMilestoneId = milestoneId;
+
+    // Re-render the skill view so the form reflects 'edit mode'
+    viewSkill(skillId);
+
+    // Now fetch the input fields (after rendering)
     const titleInput = document.getElementById('milestone-title');
     const weightInput = document.getElementById('milestone-weight');
     const deadlineInput = document.getElementById('milestone-deadline');
@@ -1376,16 +1382,10 @@ function editMilestone(skillId, milestoneId) {
         return;
     }
 
-    // Prefill input fields
+    // Prefill inputs
     titleInput.value = milestone.title || '';
     weightInput.value = milestone.weight || 1;
     deadlineInput.value = milestone.deadline ? dayjs(milestone.deadline).format('YYYY-MM-DD') : '';
-
-    // Set edit mode
-    window.currentEditingMilestoneId = milestoneId;
-
-    // Re-render to update button text
-    viewSkill(skillId);
 
     showToast('Edit the fields and click "Update Milestone" to save.', 'info');
 }
