@@ -266,11 +266,13 @@
                         it as a PWA for offline use.</li>
                     <li><strong>Complete the Onboarding Wizard:</strong> Set up your profile, add your first skill, and
                         explore features.</li>
-                    <li><strong>Unlock Styled to Sell Mode:</strong> by clicking unlock styled mode, enter the code (inside the Kit) to start tracking creative content
+                    <li><strong>Unlock Styled to Sell Mode:</strong> by clicking unlock styled mode, enter the code
+                        (inside the Kit) to start tracking creative content
                         with ease.
                         Don’t have the Kit?
                         <a href="https://selar.com/17h5n6" target="_blank"
-                            class="text-blue-600 dark:text-blue-400 underline">Get it here</a>.</li>
+                            class="text-blue-600 dark:text-blue-400 underline">Get it here</a>.
+                    </li>
                 </ul>
             </details>
 
@@ -380,22 +382,22 @@
 
 
     <!-- 🎖️ Badge Gallery Modal -->
-<div id="badge-gallery-modal"
-     class="fixed inset-0 bg-black bg-opacity-70 hidden flex items-center justify-center z-50 p-2 sm:p-4 overflow-x-hidden">
-  <div
-    class="bg-white dark:bg-gray-800 rounded-lg w-full max-w-lg sm:max-w-2xl h-screen sm:h-[90vh] flex flex-col shadow-lg border border-gray-300 dark:border-gray-700 mx-2 sm:mx-0">
-    <div class="flex justify-between items-center p-4 border-b dark:border-gray-600">
-      <h3 class="text-lg sm:text-2xl font-bold dark:text-white truncate">🏅 Badge Gallery</h3>
-      <button onclick="closeBadgeGallery()"
-              class="text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white text-3xl p-3 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-              aria-label="Close badge gallery">×</button>
+    <div id="badge-gallery-modal"
+        class="fixed inset-0 bg-black bg-opacity-70 hidden flex items-center justify-center z-50 p-2 sm:p-4 overflow-x-hidden">
+        <div
+            class="bg-white dark:bg-gray-800 rounded-lg w-full max-w-lg sm:max-w-2xl h-screen sm:h-[90vh] flex flex-col shadow-lg border border-gray-300 dark:border-gray-700 mx-2 sm:mx-0">
+            <div class="flex justify-between items-center p-4 border-b dark:border-gray-600">
+                <h3 class="text-lg sm:text-2xl font-bold dark:text-white truncate">🏅 Badge Gallery</h3>
+                <button onclick="closeBadgeGallery()"
+                    class="text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white text-3xl p-3 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    aria-label="Close badge gallery">×</button>
+            </div>
+            <div id="badge-gallery-content"
+                class="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 pb-8 flex-1 overflow-y-auto scroll-smooth">
+                <!-- Badge cards inserted here -->
+            </div>
+        </div>
     </div>
-    <div id="badge-gallery-content"
-         class="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 pb-8 flex-1 overflow-y-auto scroll-smooth">
-      <!-- Badge cards inserted here -->
-    </div>
-  </div>
-</div>
 
 
     <!-- Styled Mode Unlock Modal -->
@@ -435,6 +437,13 @@
                 <input id="login-password" type="password" placeholder="Password"
                     class="w-full p-2 rounded-lg border dark:bg-gray-900 dark:text-white" required
                     aria-label="Login password" autocomplete="current-password">
+                // Add to login modal HTML in index.html
+                <input id="otp-code" type="text" placeholder="Enter OTP code"
+                    class="p-2 rounded-lg border dark:bg-gray-900 dark:text-white w-full mb-4" aria-label="OTP code">
+                <button onclick="verifyOtpCode()"
+                    class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 w-full sm:w-auto"
+                    aria-label="Verify OTP">Verify OTP</button>
+
                 <button type="button" onclick="resetPassword(document.getElementById('login-email').value)"
                     class="text-blue-600 dark:text-blue-400 hover:underline text-sm" aria-label="Forgot password">Forgot
                     Password?</button>

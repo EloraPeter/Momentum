@@ -231,6 +231,41 @@ async function loginWithMagicLink(email) {
     }
 }
 
+async function verifyOtpCode() {
+    const email = document.getElementById('login-email')?.value;
+    const token = document.getElementById('otp-code')?.value;
+    if (!email || !token) {
+        showToast('Email and OTP code are required', 'error');
+        return;
+    }
+    try {
+        showLoading();
+        const { error } = await supabase.auth.verifyOtp({
+            email,
+            token,
+            type: 'magiclink'
+        });
+        if (error) {
+            showToast(`Error verifying OTP: ${error.message}`, 'error');
+            return;
+        }
+        const { data: { user: authUser } } = await supabase.auth.getUser();
+        if (authUser) {
+            user = authUser;
+            await syncUserData();
+            showToast('Logged in successfully via OTP');
+            closeLoginModal();
+            renderDashboard();
+            updateNavAndSidebar();
+        }
+    } catch (error) {
+        showToast('Unexpected error verifying OTP', 'error');
+        console.error('OTP verification error:', error);
+    } finally {
+        hideLoading();
+    }
+}
+
 async function resetPassword(email) {
     try {
         showLoading();
