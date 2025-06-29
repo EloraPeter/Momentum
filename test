@@ -300,7 +300,14 @@ function unlockStyledMode() {
                     name: goal.title,
                     category: goal.category,
                     tags: goal.tags,
-                    milestones: [],
+                    milestones: goal.milestones.map(m => ({
+                        id: uuidv4(),
+                        title: m.title,
+                        weight: m.weight,
+                        deadline: m.deadline,
+                        completed: m.completed,
+                        createdAt: new Date().toISOString()
+                    })),
                     reflections: [],
                     progressLog: [],
                     practiceHistory: [],
