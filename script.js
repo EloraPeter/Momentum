@@ -471,9 +471,9 @@ function onboardingShowStep(step) {
     const desc = document.getElementById('onboarding-step-desc');
     if (title && desc) {
         title.innerText = step === 1 ? 'Welcome to Momentum!' :
-                         step === 2 ? 'Categorize Your Skill' : 'Add a Milestone (Optional)';
+            step === 2 ? 'Categorize Your Skill' : 'Add a Milestone (Optional)';
         desc.innerText = step === 1 ? 'Let’s set up your first skill.' :
-                        step === 2 ? 'Organize it by category and tags.' : 'Want to add a starting milestone?';
+            step === 2 ? 'Organize it by category and tags.' : 'Want to add a starting milestone?';
     }
     document.getElementById('onboarding-back-btn')?.classList.toggle('hidden', step === 1);
 }
@@ -1007,14 +1007,34 @@ function viewSkill(skillId) {
         <h2 class="text-2xl font-bold dark:text-white mb-4">${skill.name}</h2>
         <p class="text-gray-600 dark:text-gray-300 mb-2">Category: ${skill.category || 'Uncategorized'}</p>
         <p class="text-gray-600 dark:text-gray-300 mb-4">Tags: ${skill.tags?.join(', ') || 'None'}</p>
-        <div class="mb-6">${renderChart(skillId)}</div>
+        <div class="mb-6">${renderChart(skill)}</div>
                 <div class="mb-6">${renderPracticeTracker(skill)}</div>
         <div class="mb-6">${renderMilestones(skill)}</div>
         <div class="mb-6">${renderReflections(skill)}</div>
     `;
+    setTimeout(() => drawChart(skill), 0); // small delay ensures DOM is ready
 }
 
-function renderChart(skillId, unit = 'day') {
+
+
+function renderChart(skill, unit = 'day') {
+    return `
+        <h3 class="text-lg font-semibold dark:text-white mb-2">Progress Over Time</h3>
+        <button onclick="exportChart('${skill.id}')" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700" aria-label="Export progress chart">Export Chart</button>
+        <div class="relative h-[300px]">
+            <canvas id="progress-chart" class="w-full h-full"></canvas>
+        </div>
+    `;
+}
+
+function drawChart(skill, unit = 'day') {
+    const ctx = document.getElementById('progress-chart')?.getContext('2d');
+    if (!ctx) return;
+
+    if (window.progressChart) {
+        window.progressChart.destroy();
+    }
+
     const progressData = skill.progressLog?.map(log => ({
         x: dayjs(log.date).toDate(),
         y: Number(log.progress) || 0
@@ -1025,62 +1045,42 @@ function renderChart(skillId, unit = 'day') {
         ? 'rgba(236, 72, 153, 0.2)'
         : 'rgba(59, 130, 246, 0.2)';
 
-    return `
-        <h3 class="text-lg font-semibold dark:text-white mb-2">Progress Over Time</h3>
-        <div class="relative h-[300px]">
-            <canvas id="progress-chart" class="w-full h-full"></canvas>
-        </div>
-        <script>
-            if (window.progressChart) {
-                progressChart.destroy();
-                progressChart = null;
-            }
-
-            const ctx = document.getElementById('progress-chart').getContext('2d');
-            progressChart = new Chart(ctx, {
-                type: 'line',
-                data: {
-                    datasets: [{
-                        label: '${skill.name} Progress',
-                        data: ${JSON.stringify(progressData)},
-                        borderColor: '${borderColor}',
-                        backgroundColor: '${backgroundColor}',
-                        fill: true,
-                        tension: 0.4
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    scales: {
-                        x: {
-                            type: 'time',
-                            time: {
-                                unit: '${unit}',
-                                tooltipFormat: 'MMM d, yyyy',
-                                displayFormats: {
-                                    day: 'MMM d',
-                                    week: 'MMM yyyy'
-                                }
-                            },
-                            title: {
-                                display: true,
-                                text: 'Date'
-                            }
-                        },
-                        y: {
-                            beginAtZero: true,
-                            max: 100,
-                            title: {
-                                display: true,
-                                text: 'Progress (%)'
-                            }
+    window.progressChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            datasets: [{
+                label: `${skill.name} Progress`,
+                data: progressData,
+                borderColor,
+                backgroundColor,
+                fill: true,
+                tension: 0.4
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                x: {
+                    type: 'time',
+                    time: {
+                        unit,
+                        tooltipFormat: 'MMM d, yyyy',
+                        displayFormats: {
+                            day: 'MMM d',
+                            week: 'MMM yyyy'
                         }
-                    }
+                    },
+                    title: { display: true, text: 'Date' }
+                },
+                y: {
+                    beginAtZero: true,
+                    max: 100,
+                    title: { display: true, text: 'Progress (%)' }
                 }
-            });
-        </script>
-    `;
+            }
+        }
+    });
 }
 
 
@@ -1255,20 +1255,18 @@ function renderHeatmap(skill) {
     return `
         <div class="grid grid-cols-12 gap-1">
             ${days.map(date => {
-                const practiced = skill.practiceHistory?.includes(date);
-                const tooltip = dayjs(date).format('MMM D, YYYY');
-                return `
+        const practiced = skill.practiceHistory?.includes(date);
+        const tooltip = dayjs(date).format('MMM D, YYYY');
+        return `
                     <div 
                         class="w-5 h-5 rounded heatmap-day ${practiced ? 'practiced' : ''}" 
                         title="${tooltip}">
                     </div>
                 `;
-            }).join('')}
+    }).join('')}
         </div>
     `;
 }
-
-
 
 function renderReflections(skill) {
     return `
@@ -1282,6 +1280,9 @@ function renderReflections(skill) {
                 <div class="p-2 border-b dark:border-gray-600">
                     <p class="text-sm text-gray-500 dark:text-gray-400">${dayjs(r.date).format('MMM d, YYYY')}</p>
                     <p class="dark:text-white">${r.text}</p>
+                     <div class="flex gap-2 mt-2">
+                        <button onclick="editReflection('${skill.id}', '${r.id}')" class="text-blue-600 dark:text-blue-400 hover:underline" aria-label="Edit reflection">Edit</button>
+                        <button onclick="deleteReflection('${skill.id}', '${r.id}')" class="text-red-600 dark:text-red-400 hover:underline" aria-label="Delete reflection">Delete</button>
                 </div>
             `).join('') || '<p class="text-gray-600 dark:text-gray-300">No reflections yet.</p>'}
         </div>
@@ -1313,6 +1314,8 @@ function addReflection(skillId) {
     viewSkill(skillId);
     hideLoading();
 }
+
+
 
 function toggleSkillView() {
     const currentView = localStorage.getItem('skillView') || 'grid';
