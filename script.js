@@ -1775,7 +1775,7 @@ async function init() {
     }
     document.getElementById('fab')?.addEventListener('click', openAddSkillModal);
     if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('/service-worker.js').then(reg => {
+        navigator.serviceWorker.register('service-worker.js').then(reg => {
             console.log('[PWA] Service Worker registered', reg);
         }).catch(err => {
             console.error('[PWA] Service Worker registration failed:', err);
