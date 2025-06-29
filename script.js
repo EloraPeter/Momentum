@@ -1743,7 +1743,6 @@ function submitFeedback() {
         showToast('Feedback cannot be empty', 'error');
         return;
     }
-    console.log('Feedback submitted:', feedback);
     showToast('Thank you for your feedback!');
     closeFeedback();
 }
