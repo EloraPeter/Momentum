@@ -1007,50 +1007,82 @@ function viewSkill(skillId) {
         <h2 class="text-2xl font-bold dark:text-white mb-4">${skill.name}</h2>
         <p class="text-gray-600 dark:text-gray-300 mb-2">Category: ${skill.category || 'Uncategorized'}</p>
         <p class="text-gray-600 dark:text-gray-300 mb-4">Tags: ${skill.tags?.join(', ') || 'None'}</p>
-        <div class="mb-6">${renderChart(skill)}</div>
+        <div class="mb-6">${renderChart(skillId)}</div>
                 <div class="mb-6">${renderPracticeTracker(skill)}</div>
         <div class="mb-6">${renderMilestones(skill)}</div>
         <div class="mb-6">${renderReflections(skill)}</div>
     `;
 }
 
-function renderChart(skill) {
+function renderChart(skillId, unit = 'day') {
     const progressData = skill.progressLog?.map(log => ({
         x: dayjs(log.date).toDate(),
-        y: log.progress
+        y: Number(log.progress) || 0
     })) || [];
+
+    const borderColor = styledToSellMode && skill.tags?.includes('StyledToSell') ? '#ec4899' : '#3b82f6';
+    const backgroundColor = styledToSellMode && skill.tags?.includes('StyledToSell')
+        ? 'rgba(236, 72, 153, 0.2)'
+        : 'rgba(59, 130, 246, 0.2)';
+
     return `
         <h3 class="text-lg font-semibold dark:text-white mb-2">Progress Over Time</h3>
-        <canvas id="progress-chart" class="w-full max-w-md mx-auto"></canvas>
+        <div class="relative h-[300px]">
+            <canvas id="progress-chart" class="w-full h-full"></canvas>
+        </div>
         <script>
-            if (progressChart) progressChart.destroy();
-            progressChart = new Chart(document.getElementById('progress-chart'), {
+            if (window.progressChart) {
+                progressChart.destroy();
+                progressChart = null;
+            }
+
+            const ctx = document.getElementById('progress-chart').getContext('2d');
+            progressChart = new Chart(ctx, {
                 type: 'line',
                 data: {
                     datasets: [{
-                        label: 'Progress',
+                        label: '${skill.name} Progress',
                         data: ${JSON.stringify(progressData)},
-                        borderColor: '${styledToSellMode && skill.tags?.includes('StyledToSell') ? '#ec4899' : '#3b82f6'}',
-                        fill: false
+                        borderColor: '${borderColor}',
+                        backgroundColor: '${backgroundColor}',
+                        fill: true,
+                        tension: 0.4
                     }]
                 },
                 options: {
                     responsive: true,
+                    maintainAspectRatio: false,
                     scales: {
                         x: {
                             type: 'time',
                             time: {
-                                unit: 'day',
-                                displayFormats: { day: 'MMM d' }
+                                unit: '${unit}',
+                                tooltipFormat: 'MMM d, yyyy',
+                                displayFormats: {
+                                    day: 'MMM d',
+                                    week: 'MMM yyyy'
+                                }
+                            },
+                            title: {
+                                display: true,
+                                text: 'Date'
                             }
                         },
-                        y: { min: 0, max: 100, title: { display: true, text: 'Progress (%)' } }
+                        y: {
+                            beginAtZero: true,
+                            max: 100,
+                            title: {
+                                display: true,
+                                text: 'Progress (%)'
+                            }
+                        }
                     }
                 }
             });
         </script>
     `;
 }
+
 
 function renderMilestones(skill) {
     return `
@@ -1217,23 +1249,25 @@ function checkStreak() {
 }
 
 function renderHeatmap(skill) {
-    const start = dayjs().subtract(84, 'day').startOf('day');
+    const start = dayjs().subtract(83, 'day').startOf('day'); // 84 days total
     const days = Array.from({ length: 84 }, (_, i) => start.add(i, 'day').format('YYYY-MM-DD'));
 
     return `
         <div class="grid grid-cols-12 gap-1">
-            ${days.map(day => {
-                const isPracticed = skill.practiceHistory?.includes(day);
+            ${days.map(date => {
+                const practiced = skill.practiceHistory?.includes(date);
+                const tooltip = dayjs(date).format('MMM D, YYYY');
                 return `
                     <div 
-                        class="w-5 h-5 rounded heatmap-day ${isPracticed ? 'practiced' : ''}" 
-                        title="${dayjs(day).format('MMM D, YYYY')}">
+                        class="w-5 h-5 rounded heatmap-day ${practiced ? 'practiced' : ''}" 
+                        title="${tooltip}">
                     </div>
                 `;
             }).join('')}
         </div>
     `;
 }
+
 
 
 function renderReflections(skill) {
