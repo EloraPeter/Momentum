@@ -205,7 +205,7 @@ async function loginWithMagicLink(email) {
         }
         const { error } = await supabase.auth.signInWithOtp({
             email,
-            options: { emailRedirectTo: "https://elorapeter.github.io/Momentum/" }
+            options: { emailRedirectTo: window.location.origin }
         });
         if (error) {
             showToast(`Error sending magic link: ${error.message}`, 'error');
