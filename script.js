@@ -1097,6 +1097,22 @@ function exportChart(skillId) {
     showToast('Chart downloaded successfully!', 'success');
 }
 
+function getDeadlineCountdown(deadline) {
+    const today = dayjs().startOf('day');
+    const target = dayjs(deadline).startOf('day');
+    const diff = target.diff(today, 'day');
+
+    if (diff > 1) return `${diff} days left`;
+    if (diff === 1) return `1 day left`;
+    if (diff === 0) return `Due today`;
+    if (diff === -1) return `Overdue by 1 day`;
+    return `Overdue by ${Math.abs(diff)} days`;
+}
+
+function isOverdue(deadline, completed) {
+    if (!deadline || completed) return false;
+    return dayjs(deadline).isBefore(dayjs(), 'day');
+}
 
 function renderMilestones(skill) {
     return `
@@ -1109,10 +1125,14 @@ function renderMilestones(skill) {
         </div>
         <div class="space-y-2">
             ${skill.milestones.map(m => `
-                <div class="flex justify-between items-center p-2 border-b dark:border-gray-600">
+                <div class="flex justify-between items-center p-2 border-b dark:border-gray-600 ${isOverdue(m.deadline, m.completed) ? 'bg-red-100 dark:bg-red-900' : ''}">
                     <div class="flex-1 min-w-0">
                         <p class="dark:text-white ${m.completed ? 'line-through' : ''}">${m.title} (Weight: ${m.weight || 1})</p>
-                        <p class="text-sm text-gray-500 dark:text-gray-400">${m.deadline ? dayjs(m.deadline).format('MMM d, YYYY') : 'No deadline'}</p>
+                        <p class="text-sm text-gray-500 dark:text-gray-400">
+                            ${m.deadline 
+                                ? `${dayjs(m.deadline).format('MMM D, YYYY')} — ${getDeadlineCountdown(m.deadline)}`
+                                : 'No deadline'}
+                        </p>
                     </div>
                     <div class="flex gap-2">
                         <button onclick="toggleMilestone('${skill.id}', '${m.id}')" class="bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700" aria-label="${m.completed ? 'Unmark' : 'Mark'} complete">${m.completed ? 'Undo' : 'Complete'}</button>
@@ -1124,6 +1144,7 @@ function renderMilestones(skill) {
     `;
 }
 
+
 function addMilestone(skillId) {
     showLoading();
     const skill = skills.find(s => s.id === skillId);
@@ -1132,14 +1153,20 @@ function addMilestone(skillId) {
         hideLoading();
         return;
     }
+
     const title = document.getElementById('milestone-title')?.value.trim();
     const weight = parseInt(document.getElementById('milestone-weight')?.value) || 1;
-    const deadline = document.getElementById('milestone-deadline')?.value;
+    const rawDeadline = document.getElementById('milestone-deadline')?.value;
+    const deadline = dayjs(rawDeadline).isValid() ? dayjs(rawDeadline).format('YYYY-MM-DD') : null;
+
     if (!title) {
         showToast('Milestone title is required', 'error');
         hideLoading();
         return;
     }
+
+    if (!skill.milestones) skill.milestones = [];
+
     skill.milestones.push({
         id: uuidv4(),
         title,
@@ -1148,14 +1175,18 @@ function addMilestone(skillId) {
         completed: false,
         createdAt: new Date().toISOString()
     });
+
     logDailyProgress(skill);
     saveState();
+
     document.getElementById('milestone-title').value = '';
     document.getElementById('milestone-weight').value = '';
     document.getElementById('milestone-deadline').value = '';
+
     viewSkill(skillId);
     hideLoading();
 }
+
 
 function toggleMilestone(skillId, milestoneId) {
     showLoading();
