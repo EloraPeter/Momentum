@@ -1253,7 +1253,8 @@ function renderMilestones(skill) {
                     </div>
                     <div class="flex gap-2">
                         <button onclick="toggleMilestone('${skill.id}', '${m.id}')" class="bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700" aria-label="${m.completed ? 'Unmark' : 'Mark'} complete">${m.completed ? 'Undo' : 'Complete'}</button>
-                        <button onclick="deleteMilestone('${skill.id}', '${m.id}')" class="bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700" aria-label="Delete milestone">Delete</button>
+                            <button onclick="editMilestonePrompt('${skill.id}', '${m.id}')" class="bg-yellow-500 text-white px-3 py-1 rounded hover:bg-yellow-600" aria-label="Edit milestone">Edit</button>
+<button onclick="deleteMilestone('${skill.id}', '${m.id}')" class="bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700" aria-label="Delete milestone">Delete</button>
                     </div>
                 </div>
             `).join('')}
