@@ -212,6 +212,17 @@ async function loginWithMagicLink(email) {
             return;
         }
         showToast('Magic link sent to your email');
+        closeLoginModal();
+        // Wait for auth state change
+        supabase.auth.onAuthStateChange(async (event, session) => {
+            if (event === 'SIGNED_IN' && session) {
+                user = session.user;
+                await syncUserData();
+                showToast('Logged in successfully');
+                updateNavAndSidebar();
+                renderDashboard();
+            }
+        });
     } catch (error) {
         showToast('Unexpected error sending magic link', 'error');
         console.error('Magic link error:', error);
@@ -694,6 +705,42 @@ function closeBadgeGallery() {
     document.getElementById('badge-gallery-modal')?.classList.add('hidden');
 }
 
+function updateNavAndSidebar() {
+    const navLinks = document.getElementById('nav-links');
+    const sidebarLinks = document.getElementById('sidebar-links');
+    const loginOrLogoutText = user ? 'Logout' : 'Signup/Login';
+    const loginOrLogoutAction = user ? 'logout()' : 'openLoginModal(); toggleSidebar()';
+
+    if (navLinks) {
+        navLinks.innerHTML = `
+            <select id="sort-skills" onchange="renderDashboard(null, 'category', this.value, document.getElementById('search-skills')?.value || '')" class="p-2 rounded-lg border dark:bg-gray-700 dark:text-white dark:border-gray-600" aria-label="Sort skills">
+                <option value="alphabetical">A-Z</option>
+                <option value="progress">Progress</option>
+                <option value="date">Date Added</option>
+            </select>
+            <button onclick="openBadgeGallery()" class="text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-gray-100">Badges</button>
+            <button onclick="openFeedback()" class="text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-gray-100">Feedback</button>
+            <button onclick="openHelp()" class="text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-gray-100">Help</button>
+            <button onclick="openStyledModeModal()" class="text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-gray-100">Unlock Styled Mode</button>
+            <button onclick="${loginOrLogoutAction}" class="text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-gray-100">${loginOrLogoutText}</button>
+        `;
+    }
+
+    if (sidebarLinks) {
+        sidebarLinks.innerHTML = `
+            <button onclick="renderDashboard(); toggleSidebar()" class="text-left text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-gray-100">A-Z</button>
+            <button onclick="renderDashboard(null, 'category', 'progress'); toggleSidebar()" class="text-left text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-gray-100">Progress</button>
+            <button onclick="renderDashboard(null, 'category', 'date'); toggleSidebar()" class="text-left text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-gray-100">Date Added</button>
+            <button onclick="openBadgeGallery(); toggleSidebar()" class="text-left text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-gray-100">Badges</button>
+            <button onclick="openFeedback(); toggleSidebar()" class="text-left text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-gray-100">Feedback</button>
+            <button onclick="openHelp(); toggleSidebar()" class="text-left text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-gray-100">Help</button>
+            <button onclick="openStyledModeModal(); toggleSidebar()" class="text-left text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-gray-100">Unlock Styled Mode</button>
+            <button onclick="${loginOrLogoutAction}" class="text-left text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-gray-100">${loginOrLogoutText}</button>
+            <button onclick="toggleDarkMode(); toggleSidebar()" class="text-left text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-gray-100">Toggle Dark Mode</button>
+        `;
+    }
+}
+
 // Render dashboard
 function renderDashboard(filter = null, type = 'category', sort = 'alphabetical', searchQuery = '') {
     showLoading();
@@ -724,6 +771,7 @@ function renderDashboard(filter = null, type = 'category', sort = 'alphabetical'
             ${renderSkillCards(sortedSkills)}
             ${styledToSellMode ? renderStyledTracker() : ''}
         `;
+        updateNavAndSidebar(); // Update navigation and sidebar
         attachSearchInput(filter, type, sort);
         updateCategoryDropdown();
         hideLoading();
