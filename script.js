@@ -37,6 +37,7 @@ const styledGoals = [
 // Save state to localStorage and Supabase
 async function saveState() {
     try {
+        showLoading();
         localStorage.setItem('skills', JSON.stringify(skills));
         localStorage.setItem('userXP', userXP);
         localStorage.setItem('userLevel', userLevel);
@@ -59,21 +60,56 @@ async function saveState() {
                 dark_mode: darkMode,
                 styled_to_sell_mode: styledToSellMode,
                 unlocked_badges: getUnlockedBadgeIds()
-            }, { onConflict: 'user_id' });
-            if (error) console.error('Supabase save error:', error);
+            }, { onConflict: ['user_id'] });
+            if (error) {
+                console.error('Supabase save error:', error);
+                showToast('Error syncing data with server', 'error');
+            }
         }
     } catch (error) {
         console.error('Error saving state:', error);
-        showToast('Error saving data');
+        showToast('Error saving data locally', 'error');
+    } finally {
+        hideLoading();
     }
 }
 
 // Supabase auth functions
+async function signUpWithEmail(email, password) {
+    try {
+        showLoading();
+        const { data, error } = await supabase.auth.signUp({
+            email,
+            password,
+            options: { emailRedirectTo: window.location.origin }
+        });
+        if (error) {
+            showToast('Signup failed: ' + error.message, 'error');
+            return;
+        }
+        if (data.user) {
+            user = data.user;
+            await syncUserData();
+            showToast('Signed up successfully! Please check your email to verify.');
+            closeLoginModal();
+            renderDashboard();
+        } else {
+            showToast('Please check your email to verify your account.');
+        }
+    } catch (error) {
+        showToast('Unexpected signup error', 'error');
+        console.error('Signup error:', error);
+    } finally {
+        hideLoading();
+    }
+}
+
 async function loginWithEmail(email, password) {
     try {
+        showLoading();
         const { data, error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) {
-            showToast('Login failed: ' + error.message);
+            showToast('Login failed: ' + error.message, 'error');
             return;
         }
         user = data.user;
@@ -82,40 +118,72 @@ async function loginWithEmail(email, password) {
         closeLoginModal();
         renderDashboard();
     } catch (error) {
-        showToast('Unexpected login error');
+        showToast('Unexpected login error', 'error');
         console.error('Login error:', error);
+    } finally {
+        hideLoading();
     }
 }
 
 async function loginWithMagicLink(email) {
     try {
-        const { error } = await supabase.auth.signInWithOtp({ email });
+        showLoading();
+        const { error } = await supabase.auth.signInWithOtp({
+            email,
+            options: { emailRedirectTo: window.location.origin }
+        });
         if (error) {
-            showToast('Error sending magic link: ' + error.message);
+            showToast('Error sending magic link: ' + error.message, 'error');
             return;
         }
         showToast('Magic link sent to your email');
     } catch (error) {
-        showToast('Unexpected error sending magic link');
+        showToast('Unexpected error sending magic link', 'error');
         console.error('Magic link error:', error);
+    } finally {
+        hideLoading();
+    }
+}
+
+async function resetPassword(email) {
+    try {
+        showLoading();
+        const { error } = await supabase.auth.resetPasswordForEmail(email, {
+            redirectTo: window.location.origin + '/reset-password'
+        });
+        if (error) {
+            showToast('Error sending password reset link: ' + error.message, 'error');
+            return;
+        }
+        showToast('Password reset link sent to your email');
+        closeLoginModal();
+    } catch (error) {
+        showToast('Unexpected error sending reset link', 'error');
+        console.error('Reset password error:', error);
+    } finally {
+        hideLoading();
     }
 }
 
 async function logout() {
     try {
+        showLoading();
         await supabase.auth.signOut();
         user = null;
         showToast('Logged out successfully');
         renderDashboard();
     } catch (error) {
-        showToast('Error logging out');
+        showToast('Error logging out', 'error');
         console.error('Logout error:', error);
+    } finally {
+        hideLoading();
     }
 }
 
 async function syncUserData() {
     if (!user) return;
     try {
+        showLoading();
         const { data, error } = await supabase
             .from('user_data')
             .select('*')
@@ -123,6 +191,7 @@ async function syncUserData() {
             .single();
         if (error && error.code !== 'PGRST116') {
             console.error('Supabase sync error:', error);
+            showToast('Error syncing user data', 'error');
             return;
         }
         if (data) {
@@ -160,12 +229,15 @@ async function syncUserData() {
         }
     } catch (error) {
         console.error('Error syncing user data:', error);
-        showToast('Error syncing data');
+        showToast('Error syncing data', 'error');
+    } finally {
+        hideLoading();
     }
 }
 
 // Styled to Sell Mode unlock
 function unlockStyledMode() {
+    showLoading();
     const codeInput = document.getElementById('styled-mode-code');
     const code = codeInput?.value.trim();
     if (code === 'SELLSTYLE23') {
@@ -194,8 +266,9 @@ function unlockStyledMode() {
         saveState();
         renderDashboard();
     } else {
-        showToast('Invalid code');
+        showToast('Invalid code', 'error');
     }
+    hideLoading();
 }
 
 // Toggle sidebar
@@ -207,12 +280,14 @@ function toggleSidebar() {
 
 // Show/Hide loading overlay
 function showLoading() {
-    document.getElementById('loading-overlay')?.classList.remove('hidden');
+    const overlay = document.getElementById('loading-overlay');
+    if (overlay) overlay.classList.remove('hidden');
 }
 
 function hideLoading() {
     setTimeout(() => {
-        document.getElementById('loading-overlay')?.classList.add('hidden');
+        const overlay = document.getElementById('loading-overlay');
+        if (overlay) overlay.classList.add('hidden');
     }, 300);
 }
 
@@ -221,7 +296,7 @@ function showToast(message, type = 'success') {
     const container = document.getElementById('toast-container');
     if (!container) return;
     const toast = document.createElement('div');
-    toast.className = `px-4 py-2 rounded shadow-md animate-toast-enter ${type === 'success' ? 'bg-green-600 text-white' : 'bg-yellow-500 text-white'}`;
+    toast.className = `px-4 py-2 rounded shadow-md animate-toast-enter ${type === 'success' ? 'bg-green-600 text-white' : 'bg-red-600 text-white'} fixed bottom-4 right-4 z-50 max-w-[90%] sm:max-w-md`;
     toast.innerText = message;
     container.appendChild(toast);
     setTimeout(() => {
@@ -238,7 +313,7 @@ function showToastConfirm(message) {
             return;
         }
         const toast = document.createElement('div');
-        toast.className = 'bg-yellow-500 text-white px-4 py-3 rounded shadow-md animate-toast-enter flex flex-col gap-2';
+        toast.className = 'bg-yellow-500 text-white px-4 py-3 rounded shadow-md animate-toast-enter fixed bottom-4 right-4 z-50 max-w-[90%] sm:max-w-md flex flex-col gap-2';
         toast.innerHTML = `
             <div>${message}</div>
             <div class="flex justify-end gap-2">
@@ -270,10 +345,15 @@ function skipOnboarding() {
 }
 
 function onboardingNext() {
+    showLoading();
     const step = window.onboardingStep || 1;
     if (step === 1) {
         const skillName = document.getElementById('onboarding-skill-name')?.value.trim();
-        if (!skillName) return showToast('Please enter a skill name.', 'error');
+        if (!skillName) {
+            showToast('Please enter a skill name.', 'error');
+            hideLoading();
+            return;
+        }
         window.onboardingSkill = { name: skillName };
         onboardingShowStep(2);
     } else if (step === 2) {
@@ -319,6 +399,7 @@ function onboardingNext() {
         delete window.onboardingStep;
         renderDashboard();
     }
+    hideLoading();
 }
 
 function onboardingPrev() {
@@ -331,7 +412,7 @@ function onboardingShowStep(step) {
     for (let i = 1; i <= 3; i++) {
         document.getElementById(`onboarding-step-${i}`)?.classList.add('hidden');
     }
-    document.getElementById(`onboarding-step-${step}`)?.classList.remove('hidden');
+    document.getElementById(`onboarding-step-${i}`)?.classList.remove('hidden');
     const title = document.getElementById('onboarding-step-title');
     const desc = document.getElementById('onboarding-step-desc');
     if (title && desc) {
@@ -398,7 +479,7 @@ function saveUnlockedBadges(badges) {
         supabase.from('user_data').upsert({
             user_id: user.id,
             unlocked_badges: unlockedIds
-        });
+        }, { onConflict: ['user_id'] });
     }
 }
 
@@ -486,15 +567,16 @@ function openBadgeGallery() {
         const style = b.unlocked ? 'bg-green-100 dark:bg-green-800 animate-badge-pop' : 'bg-gray-100 dark:bg-gray-700 opacity-50';
         const tierColor = b.tier === 'Gold' ? 'text-yellow-500' : b.tier === 'Silver' ? 'text-gray-400' : 'text-orange-500';
         container.innerHTML += `
-            <div class="p-4 rounded-lg shadow-sm border ${style}" title="${b.description}\nProgress: ${b.progress}">
+            <div class="p-4 rounded-lg shadow-sm border ${style} flex flex-col items-center" title="${b.description}\nProgress: ${b.progress}">
                 <h4 class="text-lg font-semibold flex items-center gap-2 ${tierColor}">
                     <span class="text-2xl">${b.icon}</span> ${b.name} (${b.tier})
                 </h4>
-                <p class="text-sm text-gray-600 dark:text-gray-300 mt-1">${b.description}</p>
+                <p class="text-sm text-gray-600 dark:text-gray-300 mt-1 text-center">${b.description}</p>
                 <p class="text-xs mt-2 font-bold ${b.unlocked ? 'text-green-600' : 'text-gray-500'}">
                     ${b.unlocked ? 'Unlocked' : 'Locked'} • ${b.progress}
                 </p>
-            </div>`;
+            </div>
+        `;
     });
     modal.classList.remove('hidden');
 }
@@ -513,18 +595,19 @@ function renderDashboard(filter = null, type = 'category', sort = 'alphabetical'
         if (!main) return;
         if (!skills.length) {
             renderEmptyState();
+            hideLoading();
             return;
         }
         const filteredSkills = getFilteredSkills(filter, type, searchQuery);
         const sortedSkills = sortSkills(filteredSkills, sort);
         main.innerHTML = `
             ${styledToSellMode ? `
-                <div id="styled-mode-banner" class="bg-pink-500 text-white p-4 mb-4 rounded-lg flex justify-between items-center">
+                <div id="styled-mode-banner" class="bg-pink-500 text-white p-4 mb-4 rounded-lg flex flex-col sm:flex-row justify-between items-center">
                     <div>
                         <strong>✅ Styled to Sell Mode Active</strong>
                         <p>Let’s build visibility, consistency, and confidence.</p>
                     </div>
-                    <button onclick="dismissStyledBanner()" class="bg-pink-700 px-3 py-1 rounded">Dismiss</button>
+                    <button onclick="dismissStyledBanner()" class="bg-pink-700 px-3 py-1 rounded mt-2 sm:mt-0">Dismiss</button>
                 </div>
             ` : ''}
             ${renderTopBar(filter, type, sort, searchQuery)}
@@ -546,11 +629,11 @@ function renderEmptyState() {
     const main = document.getElementById('main-content');
     if (main) {
         main.innerHTML = `
-            <div class="flex items-center justify-center min-h-[50vh]">
-                <div class="bg-white dark:bg-gray-700 p-6 rounded-lg shadow-lg text-center">
+            <div class="flex items-center justify-center min-h-[50vh] p-4">
+                <div class="bg-white dark:bg-gray-700 p-6 rounded-lg shadow-lg text-center max-w-md w-full">
                     <h2 class="text-xl font-semibold dark:text-white mb-4">No Skills Yet</h2>
                     <p class="text-gray-600 dark:text-gray-300 mb-4">Start your journey by adding a new skill!</p>
-                    <button onclick="openAddSkillModal()" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700" aria-label="Create new skill">Create Skill</button>
+                    <button onclick="openAddSkillModal()" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 w-full sm:w-auto" aria-label="Create new skill">Create Skill</button>
                 </div>
             </div>
         `;
@@ -563,31 +646,31 @@ function renderStyledTracker() {
     return `
         <div class="mb-6">
             <h2 class="text-xl font-semibold dark:text-white">Styled Tracker</h2>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
                 ${styledSkills.map(skill => `
                     <div class="bg-white dark:bg-gray-700 p-4 rounded-lg shadow-md">
                         <h3 class="text-lg font-semibold dark:text-white">${skill.name}</h3>
                         <p class="text-sm text-gray-600 dark:text-gray-400">${skill.category}</p>
                         <p class="text-sm mt-2">${calculateProgress(skill)}% complete</p>
-                        <button onclick="viewSkill('${skill.id}')" class="bg-pink-500 text-white px-3 py-1 rounded mt-2 hover:bg-pink-600">View</button>
+                        <button onclick="viewSkill('${skill.id}')" class="bg-pink-500 text-white px-3 py-1 rounded mt-2 hover:bg-pink-600 w-full sm:w-auto" aria-label="View ${skill.name}">View</button>
                     </div>
                 `).join('')}
             </div>
             <div class="mt-4">
                 <h3 class="text-lg font-semibold dark:text-white">Daily Post Log</h3>
                 <div class="flex flex-col gap-2 mt-2">
-                    <input id="post-today" type="text" placeholder="What did I post today?" class="p-2 rounded-lg border dark:bg-gray-900 dark:text-white" aria-label="Post description">
-                    <input id="post-performance" type="text" placeholder="How did it perform?" class="p-2 rounded-lg border dark:bg-gray-900 dark:text-white" aria-label="Post performance">
-                    <textarea id="post-learn" placeholder="What did I learn?" class="p-2 rounded-lg border dark:bg-gray-900 dark:text-white h-24" aria-label="Post learnings"></textarea>
-                    <div class="flex gap-2">
-                        <button onclick="addStyledLog()" class="bg-pink-500 text-white px-4 py-2 rounded-lg hover:bg-pink-600">Add Log</button>
-                        <button onclick="downloadStyledLogs()" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700">Download Logs</button>
+                    <input id="post-today" type="text" placeholder="What did I post today?" class="p-2 rounded-lg border dark:bg-gray-900 dark:text-white w-full" aria-label="Post description">
+                    <input id="post-performance" type="text" placeholder="How did it perform?" class="p-2 rounded-lg border dark:bg-gray-900 dark:text-white w-full" aria-label="Post performance">
+                    <textarea id="post-learn" placeholder="What did I learn?" class="p-2 rounded-lg border dark:bg-gray-900 dark:text-white h-24 w-full" aria-label="Post learnings"></textarea>
+                    <div class="flex flex-col sm:flex-row gap-2">
+                        <button onclick="addStyledLog()" class="bg-pink-500 text-white px-4 py-2 rounded-lg hover:bg-pink-600 w-full sm:w-auto" aria-label="Add log">Add Log</button>
+                        <button onclick="downloadStyledLogs()" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 w-full sm:w-auto" aria-label="Download logs">Download Logs</button>
                     </div>
                 </div>
                 <div class="mt-4">
                     ${styledLogs.slice().reverse().map(log => `
                         <div class="p-4 border-b dark:border-gray-600">
-                            <p class="text-sm text-gray-500 dark:text-gray-400">${dayjs(log.date).format('MMM D, YYYY')}</p>
+                            <p class="text-sm text-gray-500 dark:text-gray-400">${dayjs(log.date).format('MMM d, YYYY')}</p>
                             <p class="dark:text-white"><strong>Post:</strong> ${log.post}</p>
                             <p class="dark:text-white"><strong>Performance:</strong> ${log.performance}</p>
                             <p class="dark:text-white"><strong>Learned:</strong> ${log.learn}</p>
@@ -600,11 +683,13 @@ function renderStyledTracker() {
 }
 
 function addStyledLog() {
+    showLoading();
     const post = document.getElementById('post-today')?.value.trim();
     const performance = document.getElementById('post-performance')?.value.trim();
     const learn = document.getElementById('post-learn')?.value.trim();
     if (!post || !performance || !learn) {
         showToast('Please fill all fields', 'error');
+        hideLoading();
         return;
     }
     styledLogs.push({
@@ -619,6 +704,7 @@ function addStyledLog() {
     document.getElementById('post-learn').value = '';
     saveState();
     renderDashboard();
+    hideLoading();
 }
 
 function downloadStyledLogs() {
@@ -661,21 +747,21 @@ function renderTopBar(filter, type, sort, searchQuery) {
     const icon = currentView === 'grid' ? '📃 List' : '🔲 Grid';
     return `
         <div class="mb-4">
-            <div class="flex justify-end mb-2 md:hidden">
-                <button onclick="toggleTopBar()" class="px-4 py-2 rounded bg-blue-600 text-white">☰ Filters</button>
+            <div class="flex justify-end mb-2 sm:hidden">
+                <button onclick="toggleTopBar()" class="px-4 py-2 rounded bg-blue-600 text-white w-full" aria-label="Toggle filters">☰ Filters</button>
             </div>
-            <div id="topbar-collapse" class="hidden md:flex md:flex-wrap gap-3 items-center transition-all duration-300 ease-in-out">
-                <input id="search-skills" type="text" placeholder="Search skills..." value="${searchQuery || ''}" class="w-full md:flex-1 p-2 rounded-lg border dark:bg-gray-700 dark:text-white dark:border-gray-600" aria-label="Search skills"/>
-                <div class="flex flex-col md:flex-row gap-3 w-full md:w-auto">
+            <div id="topbar-collapse" class="hidden sm:flex sm:flex-wrap gap-3 items-center transition-all duration-300 ease-in-out">
+                <input id="search-skills" type="text" placeholder="Search skills..." value="${searchQuery || ''}" class="w-full sm:flex-1 p-2 rounded-lg border dark:bg-gray-700 dark:text-white dark:border-gray-600" aria-label="Search skills"/>
+                <div class="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
                     ${renderFilterDropdown('category', 'Category', [...new Set(skills.map(s => s.category || 'Uncategorized'))], filter, type, sort, searchQuery)}
                     ${renderFilterDropdown('tag', 'Tag', [...new Set(skills.flatMap(s => s.tags || []))], filter, type, sort, searchQuery)}
                 </div>
-                <div class="flex flex-wrap gap-2 w-full md:w-auto">
-                    <button onclick="exportData('json')" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 w-full md:w-auto">Export JSON</button>
-                    <button onclick="exportData('csv')" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 w-full md:w-auto">Export CSV</button>
-                    <button onclick="toggleSkillView()" class="bg-gray-200 dark:bg-gray-800 dark:text-white px-4 py-2 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-700 w-full md:w-auto">${icon}</button>
-                    ${!styledToSellMode ? `<button onclick="openStyledModeModal()" class="bg-pink-500 text-white px-4 py-2 rounded-lg hover:bg-pink-600 w-full md:w-auto">Unlock Styled Mode</button>` : ''}
-                    ${!user ? `<button onclick="openLoginModal()" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 w-full md:w-auto">Login</button>` : `<button onclick="logout()" class="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 w-full md:w-auto">Logout</button>`}
+                <div class="flex flex-wrap gap-2 w-full sm:w-auto">
+                    <button onclick="exportData('json')" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 w-full sm:w-auto" aria-label="Export as JSON">Export JSON</button>
+                    <button onclick="exportData('csv')" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 w-full sm:w-auto" aria-label="Export as CSV">Export CSV</button>
+                    <button onclick="toggleSkillView()" class="bg-gray-200 dark:bg-gray-800 dark:text-white px-4 py-2 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-700 w-full sm:w-auto" aria-label="Toggle view">${icon}</button>
+                    ${!styledToSellMode ? `<button onclick="openStyledModeModal()" class="bg-pink-500 text-white px-4 py-2 rounded-lg hover:bg-pink-600 w-full sm:w-auto" aria-label="Unlock Styled Mode">Unlock Styled Mode</button>` : ''}
+                    ${!user ? `<button onclick="openLoginModal()" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 w-full sm:w-auto" aria-label="Login">Login / Signup</button>` : `<button onclick="logout()" class="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 w-full sm:w-auto" aria-label="Logout">Logout</button>`}
                 </div>
             </div>
         </div>
@@ -688,7 +774,7 @@ function toggleTopBar() {
 
 function renderFilterDropdown(typeKey, label, options, filter, type, sort, searchQuery) {
     return `
-        <select id="${typeKey}-filter" onchange="renderDashboard(this.value, '${typeKey}', document.getElementById('sort-skills')?.value || '${sort}', document.getElementById('search-skills')?.value || '')" class="p-2 rounded-lg border dark:bg-gray-700 dark:text-white dark:border-gray-600" aria-label="Filter by ${label}">
+        <select id="${typeKey}-filter" onchange="renderDashboard(this.value, '${typeKey}', document.getElementById('sort-skills')?.value || '${sort}', document.getElementById('search-skills')?.value || '')" class="p-2 rounded-lg border dark:bg-gray-700 dark:text-white dark:border-gray-600 w-full sm:w-auto" aria-label="Filter by ${label}">
             <option value="">All ${label}s</option>
             ${options.map(opt => `<option value="${opt}" ${filter === opt && type === typeKey ? 'selected' : ''}>${opt}</option>`).join('')}
         </select>
@@ -710,30 +796,30 @@ function renderSkillCards(skillsArray) {
     const viewType = localStorage.getItem('skillView') || 'grid';
     return viewType === 'list' ?
         `<div class="space-y-4">${skillsArray.map(renderSkillCardList).join('')}</div>` :
-        `<div class="grid grid-cols-1 md:grid-cols-4 gap-5">${skillsArray.map(renderSkillCardGrid).join('')}</div>`;
+        `<div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">${skillsArray.map(renderSkillCardGrid).join('')}</div>`;
 }
 
 function renderSkillCardGrid(skill) {
     const progress = calculateProgress(skill);
     return `
         <div id="skill-card-${skill.id}" class="skill-card dark:bg-gray-800 p-4 rounded-lg shadow-md transition-transform transform hover:scale-105 w-full">
-            <h2 class="text-lg sm:text-xl font-semibold dark:text-white break-words">${skill.name} (${skill.category || 'Uncategorized'})</h2>
+            <h2 class="text-lg font-semibold dark:text-white break-words">${skill.name} (${skill.category || 'Uncategorized'})</h2>
             <p class="text-sm text-gray-600 dark:text-gray-400 break-words">${skill.tags?.join(', ') || ''}</p>
-            <div class="relative w-20 h-20 sm:w-24 sm:h-24 mx-auto my-4">
+            <div class="relative w-20 h-20 mx-auto my-4">
                 <svg class="w-full h-full" viewBox="0 0 36 36">
                     <circle cx="18" cy="18" r="15.9155" fill="none" stroke="#e5e7eb" stroke-width="2" />
-                    <circle class="progress-ring" cx="18" cy="18" r="15.9155" fill="none" stroke="#3b82f6" stroke-width="2" stroke-dasharray="${progress}, 100" transform="rotate(-90 18 18)" />
+                    <circle class="progress-ring" cx="18" cy="18" r="15.9155" fill="none" stroke="${styledToSellMode && skill.tags?.includes('StyledToSell') ? '#ec4899' : '#3b82f6'}" stroke-width="2" stroke-dasharray="${progress}, 100" transform="rotate(-90 18 18)" />
                     <text x="18" y="22" text-anchor="middle" fill="currentColor" class="text-sm dark:text-white">${progress}%</text>
                 </svg>
             </div>
             <p class="text-sm text-gray-600 dark:text-gray-300">${skill.milestones.filter(m => m.completed).length}/${skill.milestones.length} Milestones</p>
             <p class="text-lg">${getStatusEmoji(progress)}</p>
             <div class="mt-2 flex flex-wrap gap-1">${getBadges(skill).map(b => `<span class="badge">${b}</span>`).join('')}</div>
-            <div class="mt-4 flex flex-wrap gap-2 justify-center sm:justify-start">
-                <button onclick="viewSkill('${skill.id}')" class="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700">View</button>
-                <button onclick="editSkill('${skill.id}')" class="bg-yellow-600 text-white px-3 py-1 rounded-lg">Edit</button>
-                <button onclick="shareSkillCard('${skill.id}')" class="bg-indigo-600 text-white px-3 py-1 rounded-lg hover:bg-indigo-700">Share</button>
-                <button onclick="deleteSkill('${skill.id}')" class="bg-red-600 text-white px-3 py-1 rounded-lg">Delete</button>
+            <div class="mt-4 flex flex-wrap gap-2 justify-center">
+                <button onclick="viewSkill('${skill.id}')" class="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700" aria-label="View ${skill.name}">View</button>
+                <button onclick="editSkill('${skill.id}')" class="bg-yellow-600 text-white px-3 py-1 rounded-lg" aria-label="Edit ${skill.name}">Edit</button>
+                <button onclick="shareSkillCard('${skill.id}')" class="bg-indigo-600 text-white px-3 py-1 rounded-lg hover:bg-indigo-700" aria-label="Share ${skill.name}">Share</button>
+                <button onclick="deleteSkill('${skill.id}')" class="bg-red-600 text-white px-3 py-1 rounded-lg" aria-label="Delete ${skill.name}">Delete</button>
             </div>
         </div>
     `;
@@ -744,17 +830,17 @@ function renderSkillCardList(skill) {
     return `
         <div id="skill-card-${skill.id}" class="flex flex-col sm:flex-row justify-between gap-4 bg-white p-4 rounded-lg shadow-sm border dark:bg-gray-800 dark:text-white w-full">
             <div class="flex-1 min-w-0">
-                <h3 class="text-lg sm:text-xl font-semibold break-words">${skill.name} (${skill.category || 'Uncategorized'})</h3>
+                <h3 class="text-lg font-semibold break-words">${skill.name} (${skill.category || 'Uncategorized'})</h3>
                 <p class="text-sm text-gray-500 dark:text-gray-400 break-words">${skill.tags?.join(', ') || ''}</p>
                 <p class="text-sm mt-1">${progress}% complete — ${skill.milestones.filter(m => m.completed).length}/${skill.milestones.length} milestones</p>
                 <p class="text-lg">${getStatusEmoji(progress)}</p>
                 <div class="mt-2 flex flex-wrap gap-1">${getBadges(skill).map(b => `<span class="badge">${b}</span>`).join('')}</div>
             </div>
             <div class="flex flex-wrap gap-2 justify-center sm:justify-end sm:items-center">
-                <button onclick="viewSkill('${skill.id}')" class="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700">View</button>
-                <button onclick="editSkill('${skill.id}')" class="bg-yellow-600 text-white px-3 py-1 rounded-lg">Edit</button>
-                <button onclick="shareSkillCard('${skill.id}')" class="bg-indigo-600 text-white px-3 py-1 rounded-lg hover:bg-indigo-700">Share</button>
-                <button onclick="deleteSkill('${skill.id}')" class="bg-red-600 text-white px-3 py-1 rounded-lg">Delete</button>
+                <button onclick="viewSkill('${skill.id}')" class="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700" aria-label="View ${skill.name}">View</button>
+                <button onclick="editSkill('${skill.id}')" class="bg-yellow-600 text-white px-3 py-1 rounded-lg" aria-label="Edit ${skill.name}">Edit</button>
+                <button onclick="shareSkillCard('${skill.id}')" class="bg-indigo-600 text-white px-3 py-1 rounded-lg hover:bg-indigo-700" aria-label="Share ${skill.name}">Share</button>
+                <button onclick="deleteSkill('${skill.id}')" class="bg-red-600 text-white px-3 py-1 rounded-lg" aria-label="Delete ${skill.name}">Delete</button>
             </div>
         </div>
     `;
@@ -789,6 +875,7 @@ function renderSkillDetail(skillId) {
     const skill = skills.find(s => s.id === skillId);
     if (!skill) {
         console.error('Skill not found:', skillId);
+        showToast('Skill not found', 'error');
         hideLoading();
         return;
     }
@@ -802,13 +889,13 @@ function renderSkillDetail(skillId) {
         'How did you feel about your progress?'
     ];
     main.innerHTML = `
-        <div class="bg-white dark:bg-gray-700 p-6 rounded-lg shadow-md">
+        <div class="bg-white dark:bg-gray-700 p-6 rounded-lg shadow-md w-full">
             <button onclick="renderDashboard()" class="mb-4 text-blue-600 dark:text-blue-400 hover:underline" aria-label="Back to dashboard">← Back to Dashboard</button>
             <h2 class="text-2xl font-bold dark:text-white" aria-label="${skill.name}">${skill.name}</h2>
             <p class="text-gray-600 dark:text-gray-400">${getStatusEmoji(calculateProgress(skill))}</p>
             <div class="my-6">
                 <h3 class="text-lg font-semibold dark:text-white">Progress Over Time</h3>
-                <div class="flex gap-2 mb-2">
+                <div class="flex flex-wrap gap-2 mb-2">
                     <button onclick="renderChart('${skill.id}', 'day')" class="bg-gray-200 dark:bg-gray-600 px-4 py-1 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-500" aria-label="View daily progress">Daily</button>
                     <button onclick="renderChart('${skill.id}', 'week')" class="bg-gray-200 dark:bg-gray-600 px-4 py-1 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-500" aria-label="View weekly progress">Weekly</button>
                     <button onclick="exportChart('${skill.id}')" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700" aria-label="Export progress chart">Export Chart</button>
@@ -822,7 +909,7 @@ function renderSkillDetail(skillId) {
             </div>
             <div class="my-6">
                 <h3 class="text-lg font-semibold dark:text-white">Daily Practice</h3>
-                <div class="mb-2">
+                <div class="mb-2 flex flex-wrap gap-2">
                     ${['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(day => `
                         <label class="inline-flex items-center mr-2">
                             <input type="checkbox" class="h-5 w-5" onchange="togglePracticeDay('${skill.id}', '${day}')" ${skill.weeklyPractice?.[day] ? 'checked' : ''} aria-label="Toggle ${day} practice">
@@ -831,26 +918,26 @@ function renderSkillDetail(skillId) {
                     `).join('')}
                 </div>
                 <div id="practiceHeatmap" class="flex flex-wrap gap-2" aria-label="Practice heatmap"></div>
-                <button onclick="markTodayPracticed('${skill.id}')" class="bg-green-600 text-white px-4 py-2 rounded-lg mt-4 hover:bg-green-700" aria-label="Mark today as practiced">Mark Today as Practiced</button>
+                <button onclick="markTodayPracticed('${skill.id}')" class="bg-green-600 text-white px-4 py-2 rounded-lg mt-4 hover:bg-green-700 w-full sm:w-auto" aria-label="Mark today as practiced">Mark Today as Practiced</button>
             </div>
             <div class="my-6">
                 <h3 class="text-lg font-semibold dark:text-white">Milestones</h3>
-                <div class="mb-4 flex gap-2 flex-wrap">
+                <div class="mb-4 flex flex-col sm:flex-row gap-2 flex-wrap">
                     <input id="milestone-text" type="text" placeholder="Milestone title" class="flex-1 p-2 rounded-lg border dark:bg-gray-900 dark:text-white border-gray-200 dark:border-gray-600" aria-label="Milestone title">
-                    <input id="milestone-weight" type="number" min="1" max="10" placeholder="Weight (1-10)" class="w-24 p-2 rounded-lg border dark:bg-gray-900 dark:text-white border-gray-200 dark:border-gray-600" aria-label="Milestone weight">
-                    <input id="milestone-deadline" type="date" class="p-2 rounded-lg border dark:bg-gray-900 dark:text-white border-gray-200 dark:border-gray-600" aria-label="Milestone deadline">
-                    <button onclick="addMilestone('${skill.id}')" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700" aria-label="Add milestone">Add Milestone</button>
+                    <input id="milestone-weight" type="number" min="1" max="10" placeholder="Weight (1-10)" class="w-full sm:w-24 p-2 rounded-lg border dark:bg-gray-900 dark:text-white border-gray-200 dark:border-gray-600" aria-label="Milestone weight">
+                    <input id="milestone-deadline" type="date" class="p-2 rounded-lg border dark:bg-gray-900 dark:text-white border-gray-200 dark:border-gray-600 w-full sm:w-auto" aria-label="Milestone deadline">
+                    <button onclick="addMilestone('${skill.id}')" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 w-full sm:w-auto" aria-label="Add milestone">Add Milestone</button>
                 </div>
                 ${skill.milestones.map(m => `
-                    <div class="flex items-center gap-2 p-4 border-b dark:border-gray-600 justify-between">
-                        <div class="flex items-center gap-2">
+                    <div class="flex items-center gap-2 p-4 border-b dark:border-gray-600 justify-between flex-col sm:flex-row">
+                        <div class="flex items-center gap-2 flex-1">
                             <input type="checkbox" ${m.completed ? 'checked' : ''} onchange="toggleMilestone('${skill.id}', '${m.id}')" class="h-5 w-5" aria-label="Toggle milestone ${m.title} completion">
                             <div>
                                 <p class="dark:text-white">${m.title} (Weight: ${m.weight || 1})</p>
-                                ${m.deadline ? `<p class="text-sm text-gray-500 dark:text-gray-300">Due: ${dayjs(m.deadline).format('MMM D, YYYY')}</p>` : ''}
+                                ${m.deadline ? `<p class="text-sm text-gray-500 dark:text-gray-300">Due: ${dayjs(m.deadline).format('MMM d, YYYY')}</p>` : ''}
                             </div>
                         </div>
-                        <div class="flex gap-2">
+                        <div class="flex gap-2 mt-2 sm:mt-0">
                             <button onclick="editMilestone('${skill.id}', '${m.id}')" class="text-blue-600 dark:text-blue-400 hover:underline" aria-label="Edit milestone ${m.title}">Edit</button>
                             <button onclick="deleteMilestone('${skill.id}', '${m.id}')" class="text-red-600 dark:text-red-400 hover:underline" aria-label="Delete milestone ${m.title}">Delete</button>
                         </div>
@@ -861,12 +948,12 @@ function renderSkillDetail(skillId) {
                 <h3 class="text-lg font-semibold dark:text-white">Reflection Journal</h3>
                 <textarea id="new-reflection" placeholder="${prompts[Math.floor(Math.random() * prompts.length)]}" class="w-full h-24 p-3 rounded-lg border dark:bg-gray-900 dark:text-white border-gray-200 dark:border-gray-600" aria-label="New reflection"></textarea>
                 <div class="flex gap-2 mt-4">
-                    <button onclick="addReflection('${skill.id}')" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-800" aria-label="Save reflection">Save</button>
+                    <button onclick="addReflection('${skill.id}')" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-800 w-full sm:w-auto" aria-label="Save reflection">Save</button>
                 </div>
                 <div class="mt-4">
                     ${skill.reflections.slice().reverse().map(r => `
                         <div class="p-4 border-b dark:border-gray-600">
-                            <p class="text-sm text-gray-500 dark:text-gray-400">${dayjs(r.date).format('MMM D, YYYY HH:mm')}</p>
+                            <p class="text-sm text-gray-500 dark:text-gray-400">${dayjs(r.date).format('MMM d, YYYY HH:mm')}</p>
                             <p class="dark:text-white">${r.text}</p>
                             <div class="flex gap-2 mt-2">
                                 <button onclick="editReflection('${skill.id}', '${r.id}')" class="text-blue-600 dark:text-blue-400 hover:underline" aria-label="Edit reflection">Edit</button>
@@ -918,9 +1005,9 @@ function renderChart(skillId, unit) {
                         type: 'time',
                         time: {
                             unit: unit,
-                            tooltipFormat: 'MMM D, YYYY',
+                            tooltipFormat: 'MMM d, YYYY',
                             displayFormats: {
-                                day: 'MMM D',
+                                day: 'MMM d',
                                 week: 'MMM YYYY'
                             }
                         },
@@ -945,7 +1032,7 @@ function exportChart(skillId) {
     const canvas = document.getElementById('progressChart');
     if (!skill || !canvas) return;
     try {
-        html2canvas(canvas).then(canvas => {
+        html2canvas(canvas, { useCORS: true }).then(canvas => {
             const imgData = canvas.toDataURL('image/png');
             const link = document.createElement('a');
             link.download = `${skill.name}-progress.png`;
@@ -971,18 +1058,20 @@ function renderHeatmap(skillId) {
         const date = today.subtract(i, 'day').format('YYYY-MM-DD');
         const practiced = skill.practiceHistory?.includes(date);
         const dayElement = document.createElement('div');
-        dayElement.className = `heatmap-day ${practiced ? 'practiced' : ''}`;
+        dayElement.className = `heatmap-day ${practiced ? 'practiced' : ''} w-6 h-6 rounded-sm`;
         dayElement.title = date;
         heatmap.appendChild(dayElement);
     }
 }
 
 function addSkill() {
+    showLoading();
     const input = document.getElementById('new-skill');
     const category = document.getElementById('skill-category')?.value || 'Uncategorized';
     const tags = document.getElementById('skill-tags')?.value.split(',').map(t => t.trim()).filter(t => t);
     if (!input?.value.trim()) {
         showToast('Skill name cannot be empty', 'error');
+        hideLoading();
         return;
     }
     skills.push({
@@ -1002,6 +1091,7 @@ function addSkill() {
     closeAddSkillModal();
     saveState();
     renderDashboard();
+    hideLoading();
 }
 
 function openAddSkillModal() {
@@ -1033,6 +1123,7 @@ function closeEditSkillModal() {
 }
 
 function saveEditedSkill() {
+    showLoading();
     if (!skillToEdit) return;
     const skill = skills.find(s => s.id === skillToEdit);
     if (!skill) return;
@@ -1042,36 +1133,44 @@ function saveEditedSkill() {
     saveState();
     renderDashboard();
     closeEditSkillModal();
+    hideLoading();
 }
 
 async function deleteSkill(skillId) {
     const confirmed = await showToastConfirm('Are you sure you want to delete this skill?');
     if (!confirmed) return;
+    showLoading();
     skills = skills.filter(s => s.id !== skillId);
     saveState();
     renderDashboard();
     showToast('Skill deleted successfully');
+    hideLoading();
 }
 
 function togglePracticeDay(skillId, day) {
+    showLoading();
     const skill = skills.find(s => s.id === skillId);
     if (!skill) return;
     if (!skill.weeklyPractice) skill.weeklyPractice = {};
     skill.weeklyPractice[day] = !skill.weeklyPractice[day];
     saveState();
     renderSkillDetail(skillId);
+    hideLoading();
 }
 
 function addMilestone(skillId) {
+    showLoading();
     const title = document.getElementById('milestone-text')?.value.trim();
     const weight = Math.max(1, Math.min(10, parseInt(document.getElementById('milestone-weight')?.value) || 1));
     const deadline = document.getElementById('milestone-deadline')?.value;
     if (!title) {
         showToast('Milestone title cannot be empty', 'error');
+        hideLoading();
         return;
     }
     if (deadline && dayjs(deadline).isBefore(dayjs())) {
         showToast('Deadline must be in the future', 'error');
+        hideLoading();
         return;
     }
     const skill = skills.find(s => s.id === skillId);
@@ -1089,6 +1188,7 @@ function addMilestone(skillId) {
     if (deadline && Notification.permission === 'granted') {
         scheduleNotification(skillId, skill.milestones[skill.milestones.length - 1].id, title, deadline);
     }
+    hideLoading();
 }
 
 function scheduleNotification(skillId, milestoneId, title, deadline) {
@@ -1133,15 +1233,18 @@ function editMilestone(skillId, milestoneId) {
 async function deleteMilestone(skillId, milestoneId) {
     const confirmed = await showToastConfirm('Are you sure you want to delete this milestone?');
     if (!confirmed) return;
+    showLoading();
     const skill = skills.find(s => s.id === skillId);
     if (!skill) return;
     skill.milestones = skill.milestones.filter(m => m.id !== milestoneId);
     saveState();
     renderSkillDetail(skillId);
     showToast('Milestone deleted successfully');
+    hideLoading();
 }
 
 function toggleMilestone(skillId, milestoneId) {
+    showLoading();
     const skill = skills.find(s => s.id === skillId);
     const milestone = skill?.milestones.find(m => m.id === milestoneId);
     if (!skill || !milestone) return;
@@ -1160,15 +1263,18 @@ function toggleMilestone(skillId, milestoneId) {
     logDailyProgress(skill);
     saveState();
     renderSkillDetail(skillId);
+    hideLoading();
 }
 
 function markTodayPracticed(skillId) {
+    showLoading();
     const skill = skills.find(s => s.id === skillId);
     if (!skill) return;
     const today = dayjs().format('YYYY-MM-DD');
     if (!skill.practiceHistory) skill.practiceHistory = [];
     if (skill.practiceHistory.includes(today)) {
         showToast('Today is already marked as practiced');
+        hideLoading();
         return;
     }
     skill.practiceHistory.push(today);
@@ -1187,12 +1293,15 @@ function markTodayPracticed(skillId) {
     lastActivityDate = today;
     saveState();
     renderSkillDetail(skillId);
+    hideLoading();
 }
 
 function addReflection(skillId) {
+    showLoading();
     const text = document.getElementById('new-reflection')?.value.trim();
     if (!text) {
         showToast('Reflection cannot be empty', 'error');
+        hideLoading();
         return;
     }
     const skill = skills.find(s => s.id === skillId);
@@ -1205,6 +1314,7 @@ function addReflection(skillId) {
     document.getElementById('new-reflection').value = '';
     saveState();
     renderSkillDetail(skillId);
+    hideLoading();
 }
 
 function editReflection(skillId, reflectionId) {
@@ -1222,30 +1332,39 @@ function editReflection(skillId, reflectionId) {
 async function deleteReflection(skillId, reflectionId) {
     const confirmed = await showToastConfirm('Are you sure you want to delete this reflection?');
     if (!confirmed) return;
+    showLoading();
     const skill = skills.find(s => s.id === skillId);
     if (!skill) return;
-    skill.reflections = skill.reflections.filter(r => r.id !== reflectionId);
+    skill.reflections = skill.reflections.filter(r => r.id === reflectionId);
     saveState();
     renderSkillDetail(skillId);
     showToast('Reflection deleted successfully');
+    hideLoading();
 }
 
 let currentShareData = { name: '', progress: 0, image: null };
 
 function shareSkillCard(skillId) {
+    showLoading();
     const skill = skills.find(s => s.id === skillId);
     const card = document.getElementById(`skill-card-${skillId}`);
-    if (!skill || !card) return;
+    if (!skill || !card) {
+        showToast('Error preparing share', 'error');
+        hideLoading();
+        return;
+    }
     const progress = calculateProgress(skill);
     const message = `I’ve made ${progress}% progress on ${skill.name}! #MomentumApp`;
-    html2canvas(card).then(canvas => {
+    html2canvas(card, { useCORS: true, scale: window.devicePixelRatio }).then(canvas => {
         const imgData = canvas.toDataURL('image/png');
         currentShareData = { name: skill.name, progress, message, image: imgData };
         document.getElementById('share-message').innerText = message;
         document.getElementById('share-modal')?.classList.remove('hidden');
+        hideLoading();
     }).catch(error => {
         console.error('Error capturing skill card:', error);
         showToast('Error preparing share', 'error');
+        hideLoading();
     });
 }
 
@@ -1285,6 +1404,7 @@ function downloadCardImage() {
 }
 
 function exportData(format) {
+    showLoading();
     let data, filename, type;
     if (format === 'json') {
         data = JSON.stringify(skills, null, 2);
@@ -1306,6 +1426,7 @@ function exportData(format) {
     link.download = filename;
     link.click();
     URL.revokeObjectURL(url);
+    hideLoading();
 }
 
 function viewSkill(skillId) {
@@ -1347,6 +1468,14 @@ function openLoginModal() {
 
 function closeLoginModal() {
     document.getElementById('login-modal')?.classList.add('hidden');
+    document.getElementById('login-email').value = '';
+    document.getElementById('login-password').value = '';
+    document.getElementById('signup-email').value = '';
+    document.getElementById('signup-password').value = '';
+    document.getElementById('login-tab').classList.add('active');
+    document.getElementById('signup-tab').classList.remove('active');
+    document.getElementById('login-form').classList.remove('hidden');
+    document.getElementById('signup-form').classList.add('hidden');
 }
 
 function openFeedback() {
@@ -1358,13 +1487,16 @@ function closeFeedback() {
 }
 
 function submitFeedback() {
+    showLoading();
     const text = document.getElementById('feedback-text')?.value.trim();
     if (!text) {
         showToast('Please enter some feedback', 'error');
+        hideLoading();
         return;
     }
     showToast('Thank you for your feedback!');
     closeFeedback();
+    hideLoading();
 }
 
 function openHelp() {
