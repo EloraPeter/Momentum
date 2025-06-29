@@ -1,7 +1,7 @@
 {
   "name": "Momentum",
   "short_name": "Momentum",
-  "start_url": "/index.html",
+  "start_url": "/",
   "display": "standalone",
   "background_color": "#1F2937",
   "theme_color": "#2563EB",
