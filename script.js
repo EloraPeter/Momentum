@@ -1808,28 +1808,85 @@ async function init() {
     if (toggleIcon) {
         toggleIcon.className = darkMode ? 'fas fa-sun text-yellow-400' : 'fas fa-moon text-gray-600 dark:text-gray-300';
     }
-    const { data: { user: authUser } } = await supabase.auth.getUser();
-    if (authUser) {
-        user = authUser;
-        await syncUserData();
-    }
-    supabase.auth.onAuthStateChange(async (event, session) => {
-        if (event === 'SIGNED_IN' && session) {
-            user = session.user;
+
+    // Check for magic link or recovery tokens
+    const hash = window.location.hash;
+    if (hash.includes('access_token') && (hash.includes('type=magiclink') || hash.includes('type=recovery'))) {
+        const params = new URLSearchParams(hash.replace('#', ''));
+        const accessToken = params.get('access_token');
+        const refreshToken = params.get('refresh_token');
+        const type = params.get('type');
+
+        if (accessToken && refreshToken) {
+            try {
+                // Set the session using the tokens from the magic link
+                const { error } = await supabase.auth.setSession({
+                    access_token: accessToken,
+                    refresh_token: refreshToken
+                });
+                if (error) {
+                    showToast(`Authentication error: ${error.message}`, 'error');
+                    console.error('Set session error:', error);
+                    window.location.hash = ''; // Clear hash on error
+                    renderDashboard();
+                    updateNavAndSidebar();
+                    hideLoading();
+                    return;
+                }
+
+                // Get the authenticated user
+                const { data: { user: authUser } } = await supabase.auth.getUser();
+                if (authUser) {
+                    user = authUser;
+                    await syncUserData();
+                    showToast('Logged in successfully via magic link');
+                    renderDashboard();
+                    updateNavAndSidebar();
+                } else {
+                    showToast('Failed to authenticate user', 'error');
+                }
+            } catch (error) {
+                showToast('Unexpected authentication error', 'error');
+                console.error('Authentication error:', error);
+            } finally {
+                window.location.hash = ''; // Clear tokens from URL
+                hideLoading();
+            }
+        } else if (type === 'recovery') {
+            showPasswordResetForm();
+            window.location.hash = ''; // Clear hash
+            hideLoading();
+        } else {
+            showToast('Invalid magic link', 'error');
+            window.location.hash = '';
+            hideLoading();
+        }
+    } else {
+        // Normal initialization
+        const { data: { user: authUser } } = await supabase.auth.getUser();
+        if (authUser) {
+            user = authUser;
             await syncUserData();
-            updateNavAndSidebar();
-            renderDashboard();
-        } else if (event === 'SIGNED_OUT') {
-            user = null;
-            updateNavAndSidebar();
+        }
+        supabase.auth.onAuthStateChange(async (event, session) => {
+            if (event === 'SIGNED_IN' && session) {
+                user = session.user;
+                await syncUserData();
+                updateNavAndSidebar();
+                renderDashboard();
+            } else if (event === 'SIGNED_OUT') {
+                user = null;
+                updateNavAndSidebar();
+                renderDashboard();
+            }
+        });
+        if (!localStorage.getItem('hasOnboarded') && !skills.length) {
+            document.getElementById('onboarding-modal')?.classList.remove('hidden');
+        } else {
             renderDashboard();
         }
-    });
-    if (!localStorage.getItem('hasOnboarded') && !skills.length) {
-        document.getElementById('onboarding-modal')?.classList.remove('hidden');
-    } else {
-        renderDashboard();
     }
+
     document.getElementById('fab')?.addEventListener('click', openAddSkillModal);
     if ('serviceWorker' in navigator) {
         navigator.serviceWorker.register('service-worker.js').then(reg => {
