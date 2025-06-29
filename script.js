@@ -672,21 +672,21 @@ function openBadgeGallery() {
         }
     ];
     saveUnlockedBadges(allBadges);
-    allBadges.forEach(b => {
+    container.innerHTML = allBadges.map(b => {
         const style = b.unlocked ? 'bg-green-100 dark:bg-green-800 animate-badge-pop' : 'bg-gray-100 dark:bg-gray-700 opacity-50';
         const tierColor = b.tier === 'Gold' ? 'text-yellow-500' : b.tier === 'Silver' ? 'text-gray-400' : 'text-orange-500';
-        container.innerHTML += `
-            <div class="p-4 rounded-lg shadow-sm border ${style} flex flex-col items-center" title="${b.description}\nProgress: ${b.progress}">
-                <h4 class="text-lg font-semibold flex items-center gap-2 ${tierColor}">
-                    <span class="text-2xl">${b.icon}</span> ${b.name} (${b.tier})
+        return `
+            <div class="p-3 rounded-lg shadow-sm border ${style} flex flex-col items-center text-center" role="button" aria-label="${b.name} badge, ${b.unlocked ? 'unlocked' : 'locked'}" title="${b.description}\nProgress: ${b.progress}">
+                <h4 class="text-base sm:text-lg font-semibold flex items-center gap-2 ${tierColor}">
+                    <span class="text-xl sm:text-2xl">${b.icon}</span> ${b.name} (${b.tier})
                 </h4>
-                <p class="text-sm text-gray-600 dark:text-gray-300 mt-1 text-center">${b.description}</p>
-                <p class="text-xs mt-2 font-bold ${b.unlocked ? 'text-green-600' : 'text-gray-500'}">
+                <p class="text-xs sm:text-sm text-gray-600 dark:text-gray-300 mt-1">${b.description}</p>
+                <p class="text-xs font-bold ${b.unlocked ? 'text-green-600' : 'text-gray-500'} mt-2">
                     ${b.unlocked ? 'Unlocked' : 'Locked'} • ${b.progress}
                 </p>
             </div>
         `;
-    });
+    }).join('');
     modal.classList.remove('hidden');
 }
 
