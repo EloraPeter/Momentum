@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <meta name="description" content="Skill tracking and personal growth dashboard">
+    <meta name="description" content="Skill tracking and personal growth dashboard">
 
     <title>Momentum</title>
     <link rel="shortcut icon" href="images/favicon.ico" type="image/x-icon">
@@ -18,7 +18,7 @@
 </head>
 
 <body class="dark transition-colors duration-300 min-h-screen flex flex-col">
-     
+
     <header class="dark:bg-gray-800 shadow-md p-4 flex justify-between items-center">
         <h1 class="flex items-center text-xl sm:text-2xl font-bold dark:text-white">
             <img src="images/logo2.png" alt="" class="w-8 h-8 mr-2" />
@@ -26,8 +26,7 @@
         </h1>
 
         <!-- Hamburger for mobile -->
-        <button class="sm:hidden dark:text-white text-2xl" onclick="toggleSidebar()"
-            aria-label="Toggle menu">
+        <button class="sm:hidden dark:text-white text-2xl" onclick="toggleSidebar()" aria-label="Toggle menu">
             ☰
         </button>
 
@@ -45,19 +44,21 @@
             <button onclick="openFeedback()"
                 class="text-gray-600 dark:text-gray-300 hover:text-blue-600">Feedback</button>
             <button onclick="openHelp()" class="text-gray-600 dark:text-gray-300 hover:text-blue-600">Help</button>
-            <button onclick="openStyledModeModal(); toggleSidebar()" class="text-left text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-gray-100">Unlock Styled Mode</button>
-                <button onclick="openLoginModal(); toggleSidebar()" class="text-left text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-gray-100">Signup/Login</button>
+            <button onclick="openStyledModeModal(); toggleSidebar()"
+                class="text-left text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-gray-100">Unlock
+                Styled Mode</button>
+            <button onclick="openLoginModal(); toggleSidebar()"
+                class="text-left text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-gray-100">Signup/Login</button>
             <button id="dark-mode-toggle" class="fas fa-moon text-gray-600 dark:text-gray-300"
                 onclick="toggleDarkMode()" aria-label="Toggle dark mode"></button>
-                
+
         </div>
     </header>
 
     <!-- Mobile Sidebar Overlay -->
     <div id="mobile-sidebar"
         class="fixed left-0 h-full bg-white/30 dark:bg-gray-900/40 z-50 transform -translate-x-full transition-transform duration-300 ease-in-out sm:hidden">
-        <div
-            class="p-6 flex flex-col gap-4 h-full dark:text-white dark:bg-gray-800/30 rounded-r-xl shadow-lg">
+        <div class="p-6 flex flex-col gap-4 h-full dark:text-white dark:bg-gray-800/30 rounded-r-xl shadow-lg">
             <div class="flex justify-between items-center mb-6">
                 <h2 class="text-2xl font-bold">Menu</h2>
                 <button onclick="toggleSidebar()" class="text-3xl leading-none">&times;</button>
@@ -72,8 +73,11 @@
             <button onclick="openBadgeGallery(); toggleSidebar()">Badges</button>
             <button onclick="openFeedback(); toggleSidebar()">Feedback</button>
             <button onclick="openHelp(); toggleSidebar()">Help</button>
-            <button onclick="openStyledModeModal(); toggleSidebar()" class="text-left text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-gray-100">Unlock Styled Mode</button>
-                <button onclick="openLoginModal(); toggleSidebar()" class="text-left text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-gray-100">Signup/Login</button>
+            <button onclick="openStyledModeModal(); toggleSidebar()"
+                class="text-left text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-gray-100">Unlock
+                Styled Mode</button>
+            <button onclick="openLoginModal(); toggleSidebar()"
+                class="text-left text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-gray-100">Signup/Login</button>
             <button onclick="toggleDarkMode(); toggleSidebar()">Toggle Dark Mode</button>
         </div>
     </div>
@@ -233,23 +237,140 @@
         </div>
     </div>
 
-    <div id="help-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden">
-        <div class="bg-white dark:bg-gray-800 p-6 rounded-lg w-full max-w-md">
-            <h2 class="text-xl font-semibold dark:text-white mb-4">How to Use Momentum</h2>
-            <ol class="list-decimal pl-5 dark:text-gray-300">
-                <li>Add skills using the "+ Add Skill" button.</li>
-                <li>View and update milestones, practice history, and reflections.</li>
-                <li>Track your progress visually with charts and heatmaps.</li>
-                <li>Export your progress as PNG, PDF, JSON, or CSV.</li>
-                <li>Maintain streaks by practicing daily.</li>
-            </ol>
-            <div class="mt-4 flex justify-end">
+    <div id="help-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+        <div class="bg-white dark:bg-gray-800 p-6 rounded-lg w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-lg">
+            <h2 class="text-2xl font-bold text-gray-800 dark:text-white mb-4">How to Use Momentum</h2>
+
+            <!-- Collapsible Sections -->
+            <details open class="mb-3">
+                <summary class="font-semibold cursor-pointer dark:text-white">🚀 Quick Start (New Here?)</summary>
+                <ul class="list-disc list-inside text-sm text-gray-700 dark:text-gray-300 mt-2 space-y-1">
+                    <li>Install Momentum or use it in your browser.</li>
+                    <li>Run the onboarding wizard to add your first skill.</li>
+                    <li>Click on a skill to add milestones and track progress.</li>
+                    <li>Log daily practice to build streaks (and get XP).</li>
+                    <li>Use Styled to Sell Mode (code: <code>SELLSTYLE23</code>) for creative-focused content tracking.
+                    </li>
+                </ul>
+            </details>
+
+            <details open class="mb-3">
+                <summary class="font-semibold cursor-pointer dark:text-white">Getting Started</summary>
+                <ul class="list-disc list-inside text-sm text-gray-700 dark:text-gray-300 mt-2 space-y-1">
+                    <li><strong>Access the App:</strong> Open <a href="https://elorapeter.github.io/Momentum/"
+                            class="text-blue-600 dark:text-blue-400 underline" target="_blank">Momentum</a> or install
+                        it as a PWA for offline use.</li>
+                    <li><strong>Complete the Onboarding Wizard:</strong> Set up your profile, add your first skill, and
+                        explore features.</li>
+                    <li><strong>Unlock Styled to Sell Mode:</strong> Go to settings and enter <code>SELLSTYLE23</code>
+                        to unlock special tools and skills.</li>
+                </ul>
+            </details>
+
+            <details class="mb-3">
+                <summary class="font-semibold cursor-pointer dark:text-white">Adding and Managing Skills</summary>
+                <ul class="list-disc list-inside text-sm text-gray-700 dark:text-gray-300 mt-2 space-y-1">
+                    <li><strong>Add a Skill:</strong> Use the “+ Add Skill” button and fill in the details.</li>
+                    <li><strong>Edit/Delete:</strong> Click on any skill to edit or remove it.</li>
+                </ul>
+            </details>
+
+            <details class="mb-3">
+                <summary class="font-semibold cursor-pointer dark:text-white">Tracking Milestones</summary>
+                <ul class="list-disc list-inside text-sm text-gray-700 dark:text-gray-300 mt-2 space-y-1">
+                    <li><strong>View Preset Milestones:</strong> Styled to Sell Mode adds guided steps like writing a
+                        brand bio.</li>
+                    <li><strong>Update Progress:</strong> Check off completed tasks or edit them for customization.</li>
+                    <li><strong>Add Your Own:</strong> Create custom milestones with weights and optional deadlines.
+                    </li>
+                </ul>
+            </details>
+
+            <details class="mb-3">
+                <summary class="font-semibold cursor-pointer dark:text-white">Logging Practice</summary>
+                <ul class="list-disc list-inside text-sm text-gray-700 dark:text-gray-300 mt-2 space-y-1">
+                    <li><strong>Daily Logs:</strong> Click “Log Practice” under each skill to maintain a streak.</li>
+                    <li><strong>Styled to Sell Logs:</strong> Record posts like BTS, testimonials, or carousel content
+                        daily.</li>
+                </ul>
+            </details>
+
+            <details class="mb-3">
+                <summary class="font-semibold cursor-pointer dark:text-white">Visual Progress Tracking</summary>
+                <ul class="list-disc list-inside text-sm text-gray-700 dark:text-gray-300 mt-2 space-y-1">
+                    <li><strong>Heatmaps:</strong> See a visual GitHub-style grid of your activity.</li>
+                    <li><strong>Charts:</strong> Track milestone completion and log frequency.</li>
+                    <li><strong>Gamification:</strong> Earn XP and badges like “Consistency Star.”</li>
+                </ul>
+            </details>
+
+            <details class="mb-3">
+                <summary class="font-semibold cursor-pointer dark:text-white">Reflections</summary>
+                <ul class="list-disc list-inside text-sm text-gray-700 dark:text-gray-300 mt-2 space-y-1">
+                    <li><strong>Write Reflections:</strong> Record what you’ve learned or noticed.</li>
+                    <li><strong>Review Growth:</strong> See how your skills evolve over time.</li>
+                </ul>
+            </details>
+
+            <details class="mb-3">
+                <summary class="font-semibold cursor-pointer dark:text-white">Exporting and Sharing</summary>
+                <ul class="list-disc list-inside text-sm text-gray-700 dark:text-gray-300 mt-2 space-y-1">
+                    <li><strong>Export:</strong> Download your progress as PNG, PDF, CSV, or JSON.</li>
+                    <li><strong>Skill Cards:</strong> Create sharable visuals for Instagram, LinkedIn, etc.</li>
+                </ul>
+            </details>
+
+            <details class="mb-3">
+                <summary class="font-semibold cursor-pointer dark:text-white">Styled to Sell Mode Skills</summary>
+                <ul class="list-disc list-inside text-sm text-gray-700 dark:text-gray-300 mt-2 space-y-1">
+                    <li>Create a brand identity</li>
+                    <li>Post a content carousel</li>
+                    <li>Promote my offer</li>
+                    <li>Share a client win</li>
+                    <li>Post a behind-the-scenes</li>
+                </ul>
+                <p class="text-sm mt-2 dark:text-gray-400">Each comes with preset steps from the Kit’s 7-day content
+                    plan.</p>
+            </details>
+
+            <details class="mb-3">
+                <summary class="font-semibold cursor-pointer dark:text-white">Tips for Success</summary>
+                <ul class="list-disc list-inside text-sm text-gray-700 dark:text-gray-300 mt-2 space-y-1">
+                    <li>Stay consistent — even small logs matter!</li>
+                    <li>Use visuals — heatmaps + charts help with momentum.</li>
+                    <li>Export and share to build credibility online.</li>
+                    <li>Reflect often to improve content strategy.</li>
+                    <li>Use Momentum offline and sync when back online.</li>
+                </ul>
+            </details>
+
+            <details>
+                <summary class="font-semibold cursor-pointer dark:text-white">Need Help?</summary>
+                <ul class="list-disc list-inside text-sm text-gray-700 dark:text-gray-300 mt-2 space-y-1">
+                    <li>Check the dashboard for quick overviews.</li>
+                    <li>Contact support via:
+                        <ul class="list-disc list-inside ml-4 mt-1 space-y-1">
+                            <li>Instagram: <a href="https://instagram.com/florapetter" target="_blank"
+                                    class="text-blue-600 dark:text-blue-400 underline">@florapetter</a></li>
+                            <li>WhatsApp: <a href="https://wa.me/23481057692373" target="_blank"
+                                    class="text-blue-600 dark:text-blue-400 underline">+23481057692373</a></li>
+                            <li>Email: <a href="mailto:florenceomy09@email.com"
+                                    class="text-blue-600 dark:text-blue-400 underline">florenceomy09@email.com</a></li>
+                        </ul>
+                    </li>
+                </ul>
+            </details>
+
+            <!-- Close Button -->
+            <div class="mt-6 flex justify-end">
                 <button onclick="closeHelp()"
-                    class="px-4 py-2 bg-gray-300 dark:bg-gray-600 rounded-lg hover:bg-gray-400 dark:hover:bg-gray-500"
-                    aria-label="Close help modal">Close</button>
+                    class="px-4 py-2 bg-gray-300 dark:bg-gray-600 text-gray-900 dark:text-white rounded-lg hover:bg-gray-400 dark:hover:bg-gray-500 transition">
+                    Close
+                </button>
             </div>
         </div>
     </div>
+
 
     <!-- 🎖️ Badge Gallery Modal -->
     <div id="badge-gallery-modal"
@@ -270,38 +391,67 @@
     <div id="styled-mode-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden">
         <div class="bg-white dark:bg-gray-700 p-6 rounded-lg shadow-lg w-full max-w-md">
             <h2 class="text-xl font-semibold dark:text-white mb-4">Unlock Styled to Sell Mode</h2>
-            <input id="styled-mode-code" type="text" placeholder="Enter code (e.g., SELLSTYLE23)" class="w-full p-2 mb-4 rounded-lg border dark:bg-gray-900 dark:text-white" aria-label="Styled mode code">
+            <input id="styled-mode-code" type="text" placeholder="Enter code (e.g., SELLSTYLE23)"
+                class="w-full p-2 mb-4 rounded-lg border dark:bg-gray-900 dark:text-white"
+                aria-label="Styled mode code">
             <div class="flex justify-end gap-2">
-                <button onclick="closeStyledModeModal()" class="bg-gray-200 dark:bg-gray-600 px-4 py-2 rounded-lg">Cancel</button>
-                <button onclick="unlockStyledMode()" class="bg-pink-500 text-white px-4 py-2 rounded-lg hover:bg-pink-600">Unlock</button>
+                <button onclick="closeStyledModeModal()"
+                    class="bg-gray-200 dark:bg-gray-600 px-4 py-2 rounded-lg">Cancel</button>
+                <button onclick="unlockStyledMode()"
+                    class="bg-pink-500 text-white px-4 py-2 rounded-lg hover:bg-pink-600">Unlock</button>
             </div>
         </div>
     </div>
 
     <!-- signup/login -->
-   <div id="login-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-40">
+    <div id="login-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-40">
         <div class="bg-white dark:bg-gray-700 p-6 rounded-lg shadow-lg max-w-md w-[90%]">
             <h2 class="text-xl font-semibold dark:text-white mb-4">Login or Signup</h2>
             <div class="flex mb-4">
-                <button id="login-tab" class="flex-1 px-4 py-2 bg-gray-200 dark:bg-gray-600 rounded-l-lg active" onclick="document.getElementById('login-form').classList.remove('hidden'); document.getElementById('signup-form').classList.add('hidden'); this.classList.add('active'); document.getElementById('signup-tab').classList.remove('active')" aria-label="Show login form">Login</button>
-                <button id="signup-tab" class="flex-1 px-4 py-2 bg-gray-200 dark:bg-gray-600 rounded-r-lg" onclick="document.getElementById('signup-form').classList.remove('hidden'); document.getElementById('login-form').classList.add('hidden'); this.classList.add('active'); document.getElementById('login-tab').classList.remove('active')" aria-label="Show signup form">Signup</button>
+                <button id="login-tab" class="flex-1 px-4 py-2 bg-gray-200 dark:bg-gray-600 rounded-l-lg active"
+                    onclick="document.getElementById('login-form').classList.remove('hidden'); document.getElementById('signup-form').classList.add('hidden'); this.classList.add('active'); document.getElementById('signup-tab').classList.remove('active')"
+                    aria-label="Show login form">Login</button>
+                <button id="signup-tab" class="flex-1 px-4 py-2 bg-gray-200 dark:bg-gray-600 rounded-r-lg"
+                    onclick="document.getElementById('signup-form').classList.remove('hidden'); document.getElementById('login-form').classList.add('hidden'); this.classList.add('active'); document.getElementById('login-tab').classList.remove('active')"
+                    aria-label="Show signup form">Signup</button>
             </div>
-            <form id="login-form" onsubmit="event.preventDefault(); loginWithEmail(document.getElementById('login-email').value, document.getElementById('login-password').value);" class="space-y-4">
-                <input id="login-email" type="email" placeholder="Email" class="w-full p-2 rounded-lg border dark:bg-gray-900 dark:text-white" required aria-label="Login email" autocomplete="email">
-                <input id="login-password" type="password" placeholder="Password" class="w-full p-2 rounded-lg border dark:bg-gray-900 dark:text-white" required aria-label="Login password" autocomplete="current-password">
-                <button type="button" onclick="resetPassword(document.getElementById('login-email').value)" class="text-blue-600 dark:text-blue-400 hover:underline text-sm" aria-label="Forgot password">Forgot Password?</button>
+            <form id="login-form"
+                onsubmit="event.preventDefault(); loginWithEmail(document.getElementById('login-email').value, document.getElementById('login-password').value);"
+                class="space-y-4">
+                <input id="login-email" type="email" placeholder="Email"
+                    class="w-full p-2 rounded-lg border dark:bg-gray-900 dark:text-white" required
+                    aria-label="Login email" autocomplete="email">
+                <input id="login-password" type="password" placeholder="Password"
+                    class="w-full p-2 rounded-lg border dark:bg-gray-900 dark:text-white" required
+                    aria-label="Login password" autocomplete="current-password">
+                <button type="button" onclick="resetPassword(document.getElementById('login-email').value)"
+                    class="text-blue-600 dark:text-blue-400 hover:underline text-sm" aria-label="Forgot password">Forgot
+                    Password?</button>
                 <div class="flex justify-end gap-2">
-                    <button type="button" onclick="closeLoginModal()" class="px-4 py-2 bg-gray-200 dark:bg-gray-600 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-500" aria-label="Cancel">Cancel</button>
-                    <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700" aria-label="Login">Login</button>
+                    <button type="button" onclick="closeLoginModal()"
+                        class="px-4 py-2 bg-gray-200 dark:bg-gray-600 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-500"
+                        aria-label="Cancel">Cancel</button>
+                    <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                        aria-label="Login">Login</button>
                 </div>
-                <button type="button" onclick="loginWithMagicLink(document.getElementById('login-email').value)" class="w-full px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 mt-2" aria-label="Login with magic link">Login with Magic Link</button>
+                <button type="button" onclick="loginWithMagicLink(document.getElementById('login-email').value)"
+                    class="w-full px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 mt-2"
+                    aria-label="Login with magic link">Login with Magic Link</button>
             </form>
-            <form id="signup-form" class="hidden space-y-4" onsubmit="event.preventDefault(); signUpWithEmail(document.getElementById('signup-email').value, document.getElementById('signup-password').value);">
-                <input id="signup-email" type="email" placeholder="Email" class="w-full p-2 rounded-lg border dark:bg-gray-900 dark:text-white" required aria-label="Signup email" autocomplete="email">
-                <input id="signup-password" type="password" placeholder="Password" class="w-full p-2 rounded-lg border dark:bg-gray-900 dark:text-white" required aria-label="Signup password" autocomplete="new-password">
+            <form id="signup-form" class="hidden space-y-4"
+                onsubmit="event.preventDefault(); signUpWithEmail(document.getElementById('signup-email').value, document.getElementById('signup-password').value);">
+                <input id="signup-email" type="email" placeholder="Email"
+                    class="w-full p-2 rounded-lg border dark:bg-gray-900 dark:text-white" required
+                    aria-label="Signup email" autocomplete="email">
+                <input id="signup-password" type="password" placeholder="Password"
+                    class="w-full p-2 rounded-lg border dark:bg-gray-900 dark:text-white" required
+                    aria-label="Signup password" autocomplete="new-password">
                 <div class="flex justify-end gap-2">
-                    <button type="button" onclick="closeLoginModal()" class="px-4 py-2 bg-gray-200 dark:bg-gray-600 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-500" aria-label="Cancel">Cancel</button>
-                    <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700" aria-label="Signup">Signup</button>
+                    <button type="button" onclick="closeLoginModal()"
+                        class="px-4 py-2 bg-gray-200 dark:bg-gray-600 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-500"
+                        aria-label="Cancel">Cancel</button>
+                    <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                        aria-label="Signup">Signup</button>
                 </div>
             </form>
         </div>
