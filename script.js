@@ -1240,7 +1240,10 @@ function renderMilestones(skill) {
             <input id="milestone-title" type="text" placeholder="Milestone title" class="p-2 rounded-lg border dark:bg-gray-900 dark:text-white" aria-label="Milestone title">
             <input id="milestone-weight" type="number" min="1" max="10" placeholder="Weight (1-10)" class="p-2 rounded-lg border dark:bg-gray-900 dark:text-white" aria-label="Milestone weight">
             <input id="milestone-deadline" type="date" class="p-2 rounded-lg border dark:bg-gray-900 dark:text-white" aria-label="Milestone deadline">
-            <button onclick="addMilestone('${skill.id}')" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 w-full sm:w-auto" aria-label="${window.currentEditingMilestoneId ? 'Update milestone' : 'Add milestone'}">${window.currentEditingMilestoneId ? 'Update Milestone' : 'Add Milestone'}</button>
+            <div class="flex flex-col sm:flex-row gap-2">
+                <button onclick="addMilestone('${skill.id}')" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 w-full sm:w-auto" aria-label="${window.currentEditingMilestoneId ? 'Update milestone' : 'Add milestone'}">${window.currentEditingMilestoneId ? 'Update Milestone' : 'Add Milestone'}</button>
+                ${window.currentEditingMilestoneId ? `<button onclick="cancelEditMilestone('${skill.id}')" class="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 w-full sm:w-auto" aria-label="Cancel edit">Cancel</button>` : ''}
+            </div>
         </div>
         <div class="space-y-2">
             ${skill.milestones.map(m => `
@@ -1387,38 +1390,19 @@ function editMilestone(skillId, milestoneId) {
     showToast('Edit the fields and click "Update Milestone" to save.', 'info');
 }
 
-function renderMilestones(skill) {
-    return `
-        <h3 class="text-lg font-semibold dark:text-white mb-2">Milestones</h3>
-        <div class="flex flex-col gap-2 mb-4">
-            <input id="milestone-title" type="text" placeholder="Milestone title" class="p-2 rounded-lg border dark:bg-gray-900 dark:text-white" aria-label="Milestone title">
-            <input id="milestone-weight" type="number" min="1" max="10" placeholder="Weight (1-10)" class="p-2 rounded-lg border dark:bg-gray-900 dark:text-white" aria-label="Milestone weight">
-            <input id="milestone-deadline" type="date" class="p-2 rounded-lg border dark:bg-gray-900 dark:text-white" aria-label="Milestone deadline">
-            <div class="flex flex-col sm:flex-row gap-2">
-                <button onclick="addMilestone('${skill.id}')" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 w-full sm:w-auto" aria-label="${window.currentEditingMilestoneId ? 'Update milestone' : 'Add milestone'}">${window.currentEditingMilestoneId ? 'Update Milestone' : 'Add Milestone'}</button>
-                ${window.currentEditingMilestoneId ? `<button onclick="cancelEditMilestone('${skill.id}')" class="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 w-full sm:w-auto" aria-label="Cancel edit">Cancel</button>` : ''}
-            </div>
-        </div>
-        <div class="space-y-2">
-            ${skill.milestones.map(m => `
-                <div class="flex justify-between items-center p-2 border-b dark:border-gray-600 ${isOverdue(m.deadline, m.completed) ? 'bg-red-100 dark:bg-red-900' : ''}">
-                    <div class="flex-1 min-w-0">
-                        <p class="dark:text-white ${m.completed ? 'line-through' : ''}">${m.title} (Weight: ${m.weight || 1})</p>
-                        <p class="text-sm text-gray-500 dark:text-gray-400">
-                            ${m.deadline
-            ? `${dayjs(m.deadline).format('MMM D, YYYY')} — ${getDeadlineCountdown(m.deadline)}`
-            : 'No deadline'}
-                        </p>
-                    </div>
-                    <div class="flex gap-2">
-                        <button onclick="toggleMilestone('${skill.id}', '${m.id}')" class="bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700" aria-label="${m.completed ? 'Unmark' : 'Mark'} complete">${m.completed ? 'Undo' : 'Complete'}</button>
-                        <button onclick="editMilestone('${skill.id}', '${m.id}')" class="bg-yellow-500 text-white px-3 py-1 rounded hover:bg-yellow-600" aria-label="Edit milestone">Edit</button>
-                        <button onclick="deleteMilestone('${skill.id}', '${m.id}')" class="bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700" aria-label="Delete milestone">Delete</button>
-                    </div>
-                </div>
-            `).join('')}
-        </div>
-    `;
+function cancelEditMilestone(skillId) {
+    // Clear input fields
+    document.getElementById('milestone-title').value = '';
+    document.getElementById('milestone-weight').value = '';
+    document.getElementById('milestone-deadline').value = '';
+
+    // Reset edit mode
+    window.currentEditingMilestoneId = null;
+
+    // Re-render to update button text
+    viewSkill(skillId);
+
+    showToast('Edit cancelled', 'info');
 }
 
 function deleteMilestone(skillId, milestoneId) {
