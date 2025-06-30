@@ -1826,7 +1826,7 @@ async function submitFeedback() {
   }
 
   try {
-    const response = await fetch('https://momentum-git-main-eloras-projects-da0df9d6.vercel.app/', {
+    const response = await fetch('https://momentum-git-main-eloras-projects-da0df9d6.vercel.app/api/send-feedback', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ feedback })
