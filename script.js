@@ -1818,28 +1818,35 @@ function closeFeedback() {
 }
 
 async function submitFeedback() {
-    const feedback = document.getElementById('feedback-text')?.value.trim();
-    if (!feedback) {
-        showToast('Feedback cannot be empty', 'error');
-        return;
+  const feedback = document.getElementById('feedback-text').value.trim();
+
+  if (!feedback) {
+    showToast('Please enter feedback', 'error');
+    return;
+  }
+
+  try {
+    const response = await fetch('https://vercel.com/eloras-projects-da0df9d6/momentum/6gaoGz7gtkoKfDL4gaQkNjwMwzF3', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ feedback })
+    });
+
+    const data = await response.json();
+
+    if (data.success) {
+      showToast('Feedback sent! Thank you 🎉');
+    } else {
+      showToast('Error sending feedback', 'error');
     }
+  } catch (error) {
+    showToast('Something went wrong', 'error');
+    console.error(error);
+  }
 
-    const { data, error } = await supabase.from('feedback').insert([
-        {
-            feedback_text: feedback,
-            // optionally add user_id if user is logged in
-        }
-    ]);
-
-    if (error) {
-        showToast('Something went wrong. Try again.', 'error');
-        console.error(error);
-        return;
-    }
-
-    showToast('Thank you for your feedback!');
-    closeFeedback();
+  closeFeedback();
 }
+
 
 
 function openHelp() {
