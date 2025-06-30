@@ -1817,15 +1817,30 @@ function closeFeedback() {
     document.getElementById('feedback-text').value = '';
 }
 
-function submitFeedback() {
+async function submitFeedback() {
     const feedback = document.getElementById('feedback-text')?.value.trim();
     if (!feedback) {
         showToast('Feedback cannot be empty', 'error');
         return;
     }
+
+    const { data, error } = await supabase.from('feedback').insert([
+        {
+            feedback_text: feedback,
+            // optionally add user_id if user is logged in
+        }
+    ]);
+
+    if (error) {
+        showToast('Something went wrong. Try again.', 'error');
+        console.error(error);
+        return;
+    }
+
     showToast('Thank you for your feedback!');
     closeFeedback();
 }
+
 
 function openHelp() {
     document.getElementById('help-modal')?.classList.remove('hidden');
