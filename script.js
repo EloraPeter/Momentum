@@ -1826,7 +1826,7 @@ async function submitFeedback() {
   }
 
   try {
-    const response = await fetch('https://vercel.com/eloras-projects-da0df9d6/momentum/6gaoGz7gtkoKfDL4gaQkNjwMwzF3', {
+    const response = await fetch('https://momentum-flame-nine.vercel.app/', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ feedback })
