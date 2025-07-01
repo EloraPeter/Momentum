@@ -1,6 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = 'https://uspfmxwzfjludzgofzdk.supabase.co'; // Your Supabase URL
+const supabaseUrl = 'https://uspfmxwzfjludzgofzdk.supabase.co'; 
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY; // Use env var for security
 const supabase = createClient(supabaseUrl, supabaseKey);
 
@@ -8,14 +8,14 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 export default async function handler(req, res) {
     // Handle CORS preflight request
     if (req.method === 'OPTIONS') {
-        res.setHeader('Access-Control-Allow-Origin', '*');  // or restrict to your domain
+        res.setHeader('Access-Control-Allow-Origin', '*');  
         res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
         res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
         return res.status(204).end();
     }
 
     // Set CORS headers on actual response
-    res.setHeader('Access-Control-Allow-Origin', '*'); // or your local dev url or domain
+    res.setHeader('Access-Control-Allow-Origin', '*'); 
 
     if (req.method !== 'POST') {
         return res.status(405).json({ error: 'Method not allowed' });
