@@ -110,19 +110,29 @@
             <input id="new-skill" type="text" placeholder="Skill name"
                 class="w-full p-2 mb-4 rounded-lg border dark:bg-gray-700 dark:text-white dark:border-gray-600"
                 aria-label="Skill name">
+            <small class="block mt-1 text-gray-500 dark:text-gray-400">
+                Enter or select a skill to track.
+            </small>
             <div>
                 <input list="categories" id="skill-category"
                     class="w-full p-2 mb-4 rounded-lg border dark:bg-gray-700 dark:text-white dark:border-gray-600"
                     placeholder="Type Category..." />
+                <small class="block mt-1 text-gray-500 dark:text-gray-400">
+                    This helps group similar skills together.
+                </small>
                 <datalist id="categories">
                     <option value="Select Category">Select Category</option>
                     <option value="Design">Design</option>
                     <option value="Speaking">Speaking</option>
+                    <option value="Others">Others</option>
+
                 </datalist>
             </div>
             <input id="skill-tags" type="text" placeholder="Tags (comma-separated)"
                 class="w-full p-2 mb-4 rounded-lg border dark:bg-gray-700 dark:text-white dark:border-gray-600"
                 aria-label="Skill tags">
+            <small class="block mt-1 text-gray-500 dark:text-gray-400">
+                Add related keywords, separated by commas. </small>
             <div class="flex gap-2 justify-end">
                 <button onclick="closeAddSkillModal()"
                     class="px-4 py-2 bg-gray-300 dark:bg-gray-600 rounded-lg hover:bg-gray-400 dark:hover:bg-gray-500"
@@ -136,38 +146,78 @@
     <!-- Onboarding Wizard Modal -->
     <div id="onboarding-modal"
         class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center">
-        <div class="bg-white dark:bg-gray-800 p-6 rounded-lg w-11/12 max-w-md space-y-4 text-center">
+
+        <div
+            class="bg-white dark:bg-gray-800 p-6 rounded-lg w-11/12 max-w-md sm:max-w-lg md:max-w-xl lg:max-w-2xl space-y-4 text-center">
             <h2 id="onboarding-step-title" class="text-2xl font-bold dark:text-white">Welcome to Momentum!</h2>
             <p id="onboarding-step-desc" class="text-gray-600 dark:text-gray-300">Let’s set up your first skill.</p>
 
             <!-- Step Content -->
             <div id="onboarding-step-1" class="step-content">
-                <input id="onboarding-skill-name" type="text" placeholder="e.g. JavaScript"
+                <p class="text-sm text-gray-500 dark:text-gray-400">Step 1 of 3</p>
+
+                <input list="onboarding-skill" id="onboarding-skill-name" type="text"
+                    placeholder="What do you want to learn? e.g Javascript"
                     class="w-full p-2 rounded border dark:bg-gray-700 dark:text-white dark:border-gray-600" />
+                <small class="block mt-1 text-gray-500 dark:text-gray-400">
+                    Enter or select a skill to track.
+                </small>
+                <datalist id="onboarding-skill">
+                    <option value="UI/UX"></option>
+                    <option value="Music"></option>
+                    <option value="Design"></option>
+                    <option value="Marketing"></option>
+                    <option value="Sports"></option>
+                    <option value="Photography"></option>
+
+                </datalist>
             </div>
             <!-- Step 2 -->
             <div id="onboarding-step-2" class="step-content hidden">
+                <p class="text-sm text-gray-500 dark:text-gray-400">Step 2 of 3</p>
+
                 <input list="onboarding-categories" id="onboarding-skill-category" type="text"
-                    placeholder="Category (e.g. Frontend)"
+                    placeholder="What category does this skill belong to? (e.g. Frontend, Design, Marketing)"
                     class="w-full p-2 rounded border mb-3 dark:bg-gray-700 dark:text-white dark:border-gray-600" />
+                <small class="block mt-1 text-gray-500 dark:text-gray-400">
+                    This helps group similar skills together.
+                </small>
                 <datalist id="onboarding-categories">
                     <option value="Frontend"></option>
                     <option value="Backend"></option>
                     <option value="Design"></option>
                     <option value="Productivity"></option>
                     <option value="Writing"></option>
+                    <option value="Others"></option>
+
                 </datalist>
-                <input id="onboarding-skill-tags" type="text" placeholder="Tags (e.g. JavaScript, DOM, async)"
+                <input id="onboarding-skill-tags" type="text"
+                    placeholder="Tags that describe this skill (e.g. JavaScript, DOM, UX tools)"
                     class="w-full p-2 rounded border dark:bg-gray-700 dark:text-white dark:border-gray-600" />
+                <small class="block mt-1 text-gray-500 dark:text-gray-400">
+                    Add related keywords, separated by commas. </small>
             </div>
             <!-- Step 3 -->
             <div id="onboarding-step-3" class="step-content hidden">
-                <input id="onboarding-milestone-title" type="text" placeholder="Milestone title (e.g. Learn DOM)"
+                <p class="text-sm text-gray-500 dark:text-gray-400">Step 3 of 3</p>
+
+                <input id="onboarding-milestone-title" type="text"
+                    placeholder="What’s the first small win you’re aiming for?(e.g. Learn DOM)"
                     class="w-full p-2 rounded border mb-3 dark:bg-gray-700 dark:text-white dark:border-gray-600" />
-                <input id="onboarding-milestone-weight" type="number" min="1" max="10" placeholder="Weight (1-10)"
+                <small class="block mt-1 text-gray-500 dark:text-gray-400">
+                    Break your skill into a clear, achievable milestone.
+                </small>
+                <input id="onboarding-milestone-weight" type="number" min="1" max="10"
+                    placeholder="How important is this milestone? (1 = small, 10 = major)"
                     class="w-full p-2 rounded border mb-3 dark:bg-gray-700 dark:text-white dark:border-gray-600" />
-                <input id="onboarding-milestone-deadline" type="date"
+                <small class="block mt-1 text-gray-500 dark:text-gray-400">
+                    Use a scale of 1 to 10 to rate how major this milestone is for you.
+                </small>
+                <input id="onboarding-milestone-deadline" type="date" placeholder="Set a deadline (optional)"
                     class="w-full p-2 rounded border dark:bg-gray-700 dark:text-white dark:border-gray-600" />
+                <small class="block mt-1 text-gray-500 dark:text-gray-400">
+                    Choose when you’d like to complete this milestone.
+                </small>
             </div>
 
 
@@ -402,6 +452,12 @@
             <input id="styled-mode-code" type="text" placeholder="Enter your Styled to Sell code from the kit"
                 class="w-full p-2 mb-4 rounded-lg border dark:bg-gray-900 dark:text-white"
                 aria-label="Styled mode code">
+            <small class="block text-gray-500 dark:text-gray-400">
+                Got a Styled to Sell code? Paste it to unlock.
+                <br>
+                <span>No code? <a href="https://selar.com/17h5n6" target="_blank"
+                        class="text-blue-600 dark:text-blue-400 hover:underline">Get it here</a>.</span>
+            </small>
             <div class="flex justify-end gap-2">
                 <button onclick="closeStyledModeModal()"
                     class="bg-gray-200 dark:bg-gray-600 px-4 py-2 rounded-lg">Cancel</button>
