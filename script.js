@@ -8,14 +8,7 @@ function uuidv4() {
     });
 }
 
-// Supabase client initialization
-const SUPABASE_URL = 'https://uspfmxwzfjludzgofzdk.supabase.co';
-const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVzcGZteHd6ZmpsdWR6Z29memRrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTExMTIyODEsImV4cCI6MjA2NjY4ODI4MX0.qqZ1bMUq9TTWALecR5I4We-69vJOczId2tEXLFuQLVk';
-const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-
-window.currentEditingMilestoneId = null;
-
-// State variables
+// State variables (no Supabase)
 let skills = JSON.parse(localStorage.getItem('skills')) || [];
 let currentSkillId = null;
 let darkMode = localStorage.getItem('darkMode') === 'true';
@@ -26,9 +19,9 @@ let lastActivityDate = localStorage.getItem('lastActivityDate') || null;
 let progressChart = null;
 let styledLogs = JSON.parse(localStorage.getItem('styledLogs')) || [];
 let styledToSellMode = localStorage.getItem('styledToSellMode') === 'true';
-let user = null;
+let user = JSON.parse(localStorage.getItem('momentum_user')) || null;
 
-// Predefined Styled to Sell goals with preset milestones aligned with Styled to Sell Kit
+// Predefined Styled to Sell goals
 const styledGoals = [
     {
         title: "Create a brand identity",
@@ -82,7 +75,10 @@ const styledGoals = [
     }
 ];
 
-// Save state to localStorage and Supabase
+window.currentEditingMilestoneId = null;
+window.currentEditingLogId = null;
+
+// Save state to localStorage only
 async function saveState() {
     try {
         showLoading();
@@ -95,31 +91,8 @@ async function saveState() {
         localStorage.setItem('styledLogs', JSON.stringify(styledLogs));
         localStorage.setItem('styledToSellMode', styledToSellMode);
         localStorage.setItem('unlockedBadges', JSON.stringify(getUnlockedBadgeIds()));
-
         if (user) {
-            const { data: { session } } = await supabase.auth.getSession();
-            if (!session) {
-                showToast('Session expired. Please log in again.', 'error');
-                user = null;
-                renderDashboard();
-                return;
-            }
-            const { error } = await supabase.from('user_data').upsert({
-                user_id: user.id,
-                skills,
-                styled_logs: styledLogs,
-                user_xp: userXP,
-                user_level: userLevel,
-                streak,
-                last_activity_date: lastActivityDate,
-                dark_mode: darkMode,
-                styled_to_sell_mode: styledToSellMode,
-                unlocked_badges: getUnlockedBadgeIds()
-            }, { onConflict: ['user_id'] });
-            if (error) {
-                console.error('Supabase save error:', error);
-                showToast(`Error syncing data with server: ${error.message}`, 'error');
-            }
+            localStorage.setItem('momentum_user', JSON.stringify(user));
         }
     } catch (error) {
         console.error('Error saving state:', error);
@@ -129,246 +102,28 @@ async function saveState() {
     }
 }
 
-// Supabase auth functions
-async function signUpWithEmail(email, password) {
-    try {
-        showLoading();
-        if (!email || !password) {
-            showToast('Email and password are required', 'error');
-            return;
-        }
-        if (password.length < 6) {
-            showToast('Password must be at least 6 characters', 'error');
-            return;
-        }
-        const { data, error } = await supabase.auth.signUp({
-            email,
-            password,
-            options: { emailRedirectTo: window.location.origin }
-        });
-        if (error) {
-            showToast(`Signup failed: ${error.message}`, 'error');
-            return;
-        }
-        if (data.user) {
-            user = data.user;
-            await syncUserData();
-            showToast('Signed up successfully! Please check your email to verify.');
-            closeLoginModal();
-            renderDashboard();
-        } else {
-            showToast('Please check your email to verify your account.');
-        }
-    } catch (error) {
-        showToast('Unexpected signup error', 'error');
-        console.error('Signup error:', error);
-    } finally {
-        hideLoading();
-    }
+// Simple auth functions (local-only mode)
+function openLoginModal() {
+    showToast('Momentum works offline! Your data saves locally.', 'success');
+    // For demo, just set a guest user
+    user = { id: 'guest_' + Date.now(), email: 'guest@momentum.local' };
+    localStorage.setItem('momentum_user', JSON.stringify(user));
+    updateNavAndSidebar();
+    renderDashboard();
+    closeLoginModal();
 }
 
-async function loginWithEmail(email, password) {
-    try {
-        showLoading();
-        if (!email || !password) {
-            showToast('Email and password are required', 'error');
-            return;
-        }
-        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) {
-            if (error.status === 400) {
-                showToast('Invalid email or password', 'error');
-            } else {
-                showToast(`Login failed: ${error.message}`, 'error');
-            }
-            return;
-        }
-        user = data.user;
-        await syncUserData();
-        showToast('Logged in successfully');
-        closeLoginModal();
-        renderDashboard();
-    } catch (error) {
-        showToast('Unexpected login error', 'error');
-        console.error('Login error:', error);
-    } finally {
-        hideLoading();
-    }
+function closeLoginModal() {
+    const modal = document.getElementById('login-modal');
+    if (modal) modal.classList.add('hidden');
 }
 
-async function loginWithMagicLink(email) {
-    try {
-        showLoading();
-        if (!email) {
-            showToast('Email is required', 'error');
-            return;
-        }
-        const { error } = await supabase.auth.signInWithOtp({
-            email,
-            options: { emailRedirectTo: window.location.origin }
-        });
-        if (error) {
-            showToast(`Error sending magic link: ${error.message}`, 'error');
-            return;
-        }
-        showToast('Magic link sent to your email');
-        closeLoginModal();
-        // Wait for auth state change
-        supabase.auth.onAuthStateChange(async (event, session) => {
-            if (event === 'SIGNED_IN' && session) {
-                user = session.user;
-                await syncUserData();
-                showToast('Logged in successfully');
-                updateNavAndSidebar();
-                renderDashboard();
-            }
-        });
-    } catch (error) {
-        showToast('Unexpected error sending magic link', 'error');
-        console.error('Magic link error:', error);
-    } finally {
-        hideLoading();
-    }
-}
-
-async function verifyOtpCode() {
-    const email = document.getElementById('login-email')?.value;
-    const token = document.getElementById('otp-code')?.value;
-    if (!email || !token) {
-        showToast('Email and OTP code are required', 'error');
-        return;
-    }
-    try {
-        showLoading();
-        const { error } = await supabase.auth.verifyOtp({
-            email,
-            token,
-            type: 'magiclink'
-        });
-        if (error) {
-            showToast(`Error verifying OTP: ${error.message}`, 'error');
-            return;
-        }
-        const { data: { user: authUser } } = await supabase.auth.getUser();
-        if (authUser) {
-            user = authUser;
-            await syncUserData();
-            showToast('Logged in successfully via OTP');
-            closeLoginModal();
-            renderDashboard();
-            updateNavAndSidebar();
-        }
-    } catch (error) {
-        showToast('Unexpected error verifying OTP', 'error');
-        console.error('OTP verification error:', error);
-    } finally {
-        hideLoading();
-    }
-}
-
-async function resetPassword(email) {
-    try {
-        showLoading();
-        if (!email) {
-            showToast('Please enter your email', 'error');
-            return;
-        }
-        const { error } = await supabase.auth.resetPasswordForEmail(email, {
-            redirectTo: window.location.origin + '/reset-password'
-        });
-        if (error) {
-            showToast(`Error sending password reset link: ${error.message}`, 'error');
-            return;
-        }
-        showToast('Password reset link sent to your email');
-        closeLoginModal();
-    } catch (error) {
-        showToast('Unexpected error sending reset link', 'error');
-        console.error('Reset password error:', error);
-    } finally {
-        hideLoading();
-    }
-}
-
-async function logout() {
-    try {
-        showLoading();
-        await supabase.auth.signOut();
-        user = null;
-        showToast('Logged out successfully');
-        renderDashboard();
-    } catch (error) {
-        showToast('Error logging out', 'error');
-        console.error('Logout error:', error);
-    } finally {
-        hideLoading();
-    }
-}
-
-async function syncUserData() {
-    if (!user) return;
-    try {
-        showLoading();
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session) {
-            showToast('Session expired. Please log in again.', 'error');
-            user = null;
-            renderDashboard();
-            return;
-        }
-        const { data, error } = await supabase
-            .from('user_data')
-            .select('*')
-            .eq('user_id', user.id)
-            .single();
-        if (error && error.code !== 'PGRST116') {
-            console.error('Supabase sync error:', error);
-            showToast(`Error syncing user data: ${error.message}`, 'error');
-            return;
-        }
-        if (data) {
-            skills = data.skills || skills;
-            styledLogs = data.styled_logs || styledLogs;
-            userXP = data.user_xp || userXP;
-            userLevel = data.user_level || userLevel;
-            streak = data.streak || streak;
-            lastActivityDate = data.last_activity_date || lastActivityDate;
-            darkMode = data.dark_mode !== null ? data.dark_mode : darkMode;
-            styledToSellMode = data.styled_to_sell_mode || styledToSellMode;
-            if (data.unlocked_badges) {
-                localStorage.setItem('unlockedBadges', JSON.stringify(data.unlocked_badges));
-            }
-            if (user.user_metadata?.styled_to_sell_unlocked) {
-                styledToSellMode = true;
-                localStorage.setItem('styledToSellMode', 'true');
-                document.body.classList.add('styled-mode');
-            }
-            await saveState();
-        } else {
-            // Create initial user_data row
-            const { error: insertError } = await supabase.from('user_data').insert({
-                user_id: user.id,
-                skills,
-                styled_logs: styledLogs,
-                user_xp: userXP,
-                user_level: userLevel,
-                streak,
-                last_activity_date: lastActivityDate,
-                dark_mode: darkMode,
-                styled_to_sell_mode: styledToSellMode,
-                unlocked_badges: getUnlockedBadgeIds()
-            });
-            if (insertError) {
-                console.error('Supabase insert error:', insertError);
-                showToast(`Error initializing user data: ${insertError.message}`, 'error');
-            }
-        }
-    } catch (error) {
-        console.error('Error syncing user data:', error);
-        showToast('Error syncing data', 'error');
-    } finally {
-        hideLoading();
-    }
+function logout() {
+    user = null;
+    localStorage.removeItem('momentum_user');
+    updateNavAndSidebar();
+    renderDashboard();
+    showToast('Logged out');
 }
 
 // Styled to Sell Mode unlock
@@ -429,8 +184,10 @@ function toggleDarkMode() {
 // Toggle sidebar
 function toggleSidebar() {
     const sidebar = document.getElementById('mobile-sidebar');
-    sidebar.classList.toggle('-translate-x-full');
-    document.body.classList.toggle('sidebar-open');
+    if (sidebar) {
+        sidebar.classList.toggle('-translate-x-full');
+        document.body.classList.toggle('sidebar-open');
+    }
 }
 
 // Show/Hide loading overlay
@@ -627,17 +384,6 @@ function getUnlockedBadgeIds() {
     return JSON.parse(localStorage.getItem('unlockedBadges') || '[]');
 }
 
-function saveUnlockedBadges(badges) {
-    const unlockedIds = badges.filter(b => b.unlocked).map(b => b.id);
-    localStorage.setItem('unlockedBadges', JSON.stringify(unlockedIds));
-    if (user) {
-        supabase.from('user_data').upsert({
-            user_id: user.id,
-            unlocked_badges: unlockedIds
-        }, { onConflict: ['user_id'] });
-    }
-}
-
 function checkNewBadges() {
     const previous = new Set(getUnlockedBadgeIds());
     const badgeData = [
@@ -717,7 +463,6 @@ function openBadgeGallery() {
             progress: `${styledLogs.filter(l => l.post.toLowerCase().includes('sales')).length}/3 tasks`
         }
     ];
-    saveUnlockedBadges(allBadges);
     container.innerHTML = allBadges.map(b => {
         const style = b.unlocked ? 'bg-green-100 dark:bg-green-800 animate-badge-pop' : 'bg-gray-100 dark:bg-gray-700 opacity-50';
         const tierColor = b.tier === 'Gold' ? 'text-yellow-500' : b.tier === 'Silver' ? 'text-gray-400' : 'text-orange-500';
@@ -744,7 +489,7 @@ function updateNavAndSidebar() {
     const navLinks = document.getElementById('nav-links');
     const sidebarLinks = document.getElementById('sidebar-links');
     const loginOrLogoutText = user ? 'Logout' : 'Signup/Login';
-    const loginOrLogoutAction = user ? 'logout()' : 'openLoginModal(); toggleSidebar()';
+    const loginOrLogoutAction = user ? 'logout()' : 'openLoginModal()';
 
     if (navLinks) {
         navLinks.innerHTML = `
@@ -796,7 +541,7 @@ function renderDashboard(filter = null, type = 'category', sort = 'alphabetical'
                 <div id="styled-mode-banner" class="bg-pink-500 text-white p-4 mb-4 rounded-lg flex flex-col sm:flex-row justify-between items-center">
                     <div>
                         <strong>✅ Styled to Sell Mode Active</strong>
-                        <p>Let’s build visibility, consistency, and confidence.</p>
+                        <p>Let's build visibility, consistency, and confidence.</p>
                     </div>
                     <button onclick="dismissStyledBanner()" class="bg-pink-700 px-3 py-1 rounded mt-2 sm:mt-0">Dismiss</button>
                 </div>
@@ -806,7 +551,7 @@ function renderDashboard(filter = null, type = 'category', sort = 'alphabetical'
             ${renderSkillCards(sortedSkills)}
             ${styledToSellMode ? renderStyledTracker() : ''}
         `;
-        updateNavAndSidebar(); // Update navigation and sidebar
+        updateNavAndSidebar();
         attachSearchInput(filter, type, sort);
         updateCategoryDropdown();
         hideLoading();
@@ -901,7 +646,7 @@ function addStyledLog() {
                 post,
                 performance,
                 learn,
-                date: new Date().toISOString() // Optional: keep original date if you prefer
+                date: new Date().toISOString()
             };
         }
         window.currentEditingLogId = null;
@@ -918,7 +663,6 @@ function addStyledLog() {
         showToast('Log added successfully!', 'success');
     }
 
-    // Clear input fields
     document.getElementById('post-today').value = '';
     document.getElementById('post-performance').value = '';
     document.getElementById('post-learn').value = '';
@@ -959,12 +703,10 @@ function editStyledLog(id) {
     const log = styledLogs.find(l => l.id === id);
     if (!log) return showToast('Log not found', 'error');
 
-    // Prefill input fields
     document.getElementById('post-today').value = log.post;
     document.getElementById('post-performance').value = log.performance;
     document.getElementById('post-learn').value = log.learn;
 
-    // Store ID in a temporary variable
     window.currentEditingLogId = id;
 
     showToast('Edit the fields and click "Add Log" to update.', 'info');
@@ -1210,11 +952,11 @@ function viewSkill(skillId) {
         <p class="text-gray-600 dark:text-gray-300 mb-2">Category: ${skill.category || 'Uncategorized'}</p>
         <p class="text-gray-600 dark:text-gray-300 mb-4">Tags: ${skill.tags?.join(', ') || 'None'}</p>
         <div class="mb-6">${renderChart(skill)}</div>
-                <div class="mb-6">${renderPracticeTracker(skill)}</div>
+        <div class="mb-6">${renderPracticeTracker(skill)}</div>
         <div class="mb-6">${renderMilestones(skill)}</div>
         <div class="mb-6">${renderReflections(skill)}</div>
     `;
-    setTimeout(() => drawChart(skill), 0); // small delay ensures DOM is ready
+    setTimeout(() => drawChart(skill), 0);
 }
 
 function renderChart(skill, unit = 'day') {
@@ -1380,7 +1122,7 @@ function addMilestone(skillId) {
         } else {
             showToast('Milestone not found', 'error');
         }
-        window.currentEditingMilestoneId = null; // Reset edit mode
+        window.currentEditingMilestoneId = null;
     } else {
         if (!skill.milestones) skill.milestones = [];
         skill.milestones.push({
@@ -1394,7 +1136,6 @@ function addMilestone(skillId) {
         showToast('Milestone added successfully!', 'success');
     }
 
-    // Clear input fields
     document.getElementById('milestone-title').value = '';
     document.getElementById('milestone-weight').value = '';
     document.getElementById('milestone-deadline').value = '';
@@ -1447,13 +1188,9 @@ function editMilestone(skillId, milestoneId) {
         return;
     }
 
-    // Set edit mode first
     window.currentEditingMilestoneId = milestoneId;
-
-    // Re-render the skill view so the form reflects 'edit mode'
     viewSkill(skillId);
 
-    // Now fetch the input fields (after rendering)
     const titleInput = document.getElementById('milestone-title');
     const weightInput = document.getElementById('milestone-weight');
     const deadlineInput = document.getElementById('milestone-deadline');
@@ -1463,7 +1200,6 @@ function editMilestone(skillId, milestoneId) {
         return;
     }
 
-    // Prefill inputs
     titleInput.value = milestone.title || '';
     weightInput.value = milestone.weight || 1;
     deadlineInput.value = milestone.deadline ? dayjs(milestone.deadline).format('YYYY-MM-DD') : '';
@@ -1472,17 +1208,12 @@ function editMilestone(skillId, milestoneId) {
 }
 
 function cancelEditMilestone(skillId) {
-    // Clear input fields
     document.getElementById('milestone-title').value = '';
     document.getElementById('milestone-weight').value = '';
     document.getElementById('milestone-deadline').value = '';
 
-    // Reset edit mode
     window.currentEditingMilestoneId = null;
-
-    // Re-render to update button text
     viewSkill(skillId);
-
     showToast('Edit cancelled', 'info');
 }
 
@@ -1562,7 +1293,7 @@ function checkStreak() {
 }
 
 function renderHeatmap(skill) {
-    const start = dayjs().subtract(83, 'day').startOf('day'); // 84 days total
+    const start = dayjs().subtract(83, 'day').startOf('day');
     const days = Array.from({ length: 84 }, (_, i) => start.add(i, 'day').format('YYYY-MM-DD'));
 
     return `
@@ -1593,9 +1324,10 @@ function renderReflections(skill) {
                 <div class="p-2 border-b dark:border-gray-600">
                     <p class="text-sm text-gray-500 dark:text-gray-400">${dayjs(r.date).format('MMM d, YYYY')}</p>
                     <p class="dark:text-white">${r.text}</p>
-                     <div class="flex gap-2 mt-2">
+                    <div class="flex gap-2 mt-2">
                         <button onclick="editReflection('${skill.id}', '${r.id}')" class="text-blue-600 dark:text-blue-400 hover:underline" aria-label="Edit reflection">Edit</button>
                         <button onclick="deleteReflection('${skill.id}', '${r.id}')" class="text-red-600 dark:text-red-400 hover:underline" aria-label="Delete reflection">Delete</button>
+                    </div>
                 </div>
             `).join('') || '<p class="text-gray-600 dark:text-gray-300">No reflections yet.</p>'}
         </div>
@@ -1637,7 +1369,7 @@ function editReflection(skillId, reflectionId) {
     if (newText?.trim()) {
         reflection.text = newText.trim();
         saveState();
-        viewSkill(skillId); // ✅ FIXED: was renderSkillDetail()
+        viewSkill(skillId);
     }
 }
 
@@ -1651,7 +1383,7 @@ async function deleteReflection(skillId, reflectionId) {
 
     skill.reflections = skill.reflections.filter(r => r.id !== reflectionId);
     saveState();
-    viewSkill(skillId); // ✅ FIXED: was renderSkillDetail()
+    viewSkill(skillId);
     showToast('Reflection deleted successfully');
     hideLoading();
 }
@@ -1793,19 +1525,8 @@ function openStyledModeModal() {
 
 function closeStyledModeModal() {
     document.getElementById('styled-mode-modal')?.classList.add('hidden');
-    document.getElementById('styled-mode-code').value = '';
-}
-
-function openLoginModal() {
-    document.getElementById('login-modal')?.classList.remove('hidden');
-}
-
-function closeLoginModal() {
-    document.getElementById('login-modal')?.classList.add('hidden');
-    document.getElementById('login-email').value = '';
-    document.getElementById('login-password').value = '';
-    document.getElementById('signup-email').value = '';
-    document.getElementById('signup-password').value = '';
+    const codeInput = document.getElementById('styled-mode-code');
+    if (codeInput) codeInput.value = '';
 }
 
 function openFeedback() {
@@ -1814,40 +1535,38 @@ function openFeedback() {
 
 function closeFeedback() {
     document.getElementById('feedback-modal')?.classList.add('hidden');
-    document.getElementById('feedback-text').value = '';
+    const feedbackText = document.getElementById('feedback-text');
+    if (feedbackText) feedbackText.value = '';
 }
 
 async function submitFeedback() {
-  const feedback = document.getElementById('feedback-text').value.trim();
+    const feedback = document.getElementById('feedback-text')?.value.trim();
 
-  if (!feedback) {
-    showToast('Please enter feedback', 'error');
-    return;
-  }
-
-  try {
-    const response = await fetch('https://momentum-git-main-eloras-projects-da0df9d6.vercel.app/api/send-feedback', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ feedback })
-    });
-
-    const data = await response.json();
-
-    if (data.success) {
-      showToast('Feedback sent! Thank you 🎉');
-    } else {
-      showToast('Error sending feedback', 'error');
+    if (!feedback) {
+        showToast('Please enter feedback', 'error');
+        return;
     }
-  } catch (error) {
-    showToast('Something went wrong', 'error');
-    console.error(error);
-  }
 
-  closeFeedback();
+    try {
+        const response = await fetch('/api/send-feedback', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ feedback })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            showToast('Feedback sent! Thank you 🎉');
+            closeFeedback();
+        } else {
+            showToast('Error sending feedback', 'error');
+        }
+    } catch (error) {
+        showToast('Something went wrong', 'error');
+        console.error(error);
+    }
 }
-
-
 
 function openHelp() {
     document.getElementById('help-modal')?.classList.remove('hidden');
@@ -1866,96 +1585,79 @@ async function init() {
         toggleIcon.className = darkMode ? 'fas fa-sun text-yellow-400' : 'fas fa-moon text-gray-600 dark:text-gray-300';
     }
 
-    // Check for magic link or recovery tokens
-    const hash = window.location.hash;
-    if (hash.includes('access_token') && (hash.includes('type=magiclink') || hash.includes('type=recovery'))) {
-        const params = new URLSearchParams(hash.replace('#', ''));
-        const accessToken = params.get('access_token');
-        const refreshToken = params.get('refresh_token');
-        const type = params.get('type');
-
-        if (accessToken && refreshToken) {
-            try {
-                // Set the session using the tokens from the magic link
-                const { error } = await supabase.auth.setSession({
-                    access_token: accessToken,
-                    refresh_token: refreshToken
-                });
-                if (error) {
-                    showToast(`Authentication error: ${error.message}`, 'error');
-                    console.error('Set session error:', error);
-                    window.location.hash = ''; // Clear hash on error
-                    renderDashboard();
-                    updateNavAndSidebar();
-                    hideLoading();
-                    return;
-                }
-
-                // Get the authenticated user
-                const { data: { user: authUser } } = await supabase.auth.getUser();
-                if (authUser) {
-                    user = authUser;
-                    await syncUserData();
-                    showToast('Logged in successfully via magic link');
-                    renderDashboard();
-                    updateNavAndSidebar();
-                } else {
-                    showToast('Failed to authenticate user', 'error');
-                }
-            } catch (error) {
-                showToast('Unexpected authentication error', 'error');
-                console.error('Authentication error:', error);
-            } finally {
-                window.location.hash = ''; // Clear tokens from URL
-                hideLoading();
-            }
-        } else if (type === 'recovery') {
-            showPasswordResetForm();
-            window.location.hash = ''; // Clear hash
-            hideLoading();
-        } else {
-            showToast('Invalid magic link', 'error');
-            window.location.hash = '';
-            hideLoading();
-        }
+    if (!localStorage.getItem('hasOnboarded') && !skills.length) {
+        document.getElementById('onboarding-modal')?.classList.remove('hidden');
     } else {
-        // Normal initialization
-        const { data: { user: authUser } } = await supabase.auth.getUser();
-        if (authUser) {
-            user = authUser;
-            await syncUserData();
-        }
-        supabase.auth.onAuthStateChange(async (event, session) => {
-            if (event === 'SIGNED_IN' && session) {
-                user = session.user;
-                await syncUserData();
-                updateNavAndSidebar();
-                renderDashboard();
-            } else if (event === 'SIGNED_OUT') {
-                user = null;
-                updateNavAndSidebar();
-                renderDashboard();
-            }
-        });
-        if (!localStorage.getItem('hasOnboarded') && !skills.length) {
-            document.getElementById('onboarding-modal')?.classList.remove('hidden');
-        } else {
-            renderDashboard();
-        }
+        renderDashboard();
     }
 
-    document.getElementById('fab')?.addEventListener('click', openAddSkillModal);
+    const fab = document.getElementById('fab');
+    if (fab) fab.addEventListener('click', openAddSkillModal);
+    
     if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('service-worker.js').then(reg => {
+        navigator.serviceWorker.register('/service-worker.js').then(reg => {
             console.log('[PWA] Service Worker registered', reg);
         }).catch(err => {
             console.error('[PWA] Service Worker registration failed:', err);
         });
     }
+    
     if (Notification.permission !== 'granted' && Notification.permission !== 'denied') {
         Notification.requestPermission();
     }
+    
     hideLoading();
 }
 
+// Make functions globally available
+window.openAddSkillModal = openAddSkillModal;
+window.toggleDarkMode = toggleDarkMode;
+window.toggleSidebar = toggleSidebar;
+window.renderDashboard = renderDashboard;
+window.openBadgeGallery = openBadgeGallery;
+window.openFeedback = openFeedback;
+window.openHelp = openHelp;
+window.openStyledModeModal = openStyledModeModal;
+window.openLoginModal = openLoginModal;
+window.logout = logout;
+window.submitFeedback = submitFeedback;
+window.toggleSkillView = toggleSkillView;
+window.exportData = exportData;
+window.shareSkillCard = shareSkillCard;
+window.viewSkill = viewSkill;
+window.editSkill = editSkill;
+window.deleteSkill = deleteSkill;
+window.addStyledLog = addStyledLog;
+window.downloadStyledLogs = downloadStyledLogs;
+window.editStyledLog = editStyledLog;
+window.deleteStyledLog = deleteStyledLog;
+window.unlockStyledMode = unlockStyledMode;
+window.toggleDarkMode = toggleDarkMode;
+window.closeHelp = closeHelp;
+window.closeFeedback = closeFeedback;
+window.closeStyledModeModal = closeStyledModeModal;
+window.closeBadgeGallery = closeBadgeGallery;
+window.closeShareModal = closeShareModal;
+window.shareTo = shareTo;
+window.copyShareLink = copyShareLink;
+window.downloadCardImage = downloadCardImage;
+window.onboardingNext = onboardingNext;
+window.onboardingPrev = onboardingPrev;
+window.skipOnboarding = skipOnboarding;
+window.closeAddSkillModal = closeAddSkillModal;
+window.addSkill = addSkill;
+window.closeEditSkillModal = closeEditSkillModal;
+window.saveEditedSkill = saveEditedSkill;
+window.addMilestone = addMilestone;
+window.toggleMilestone = toggleMilestone;
+window.editMilestone = editMilestone;
+window.deleteMilestone = deleteMilestone;
+window.cancelEditMilestone = cancelEditMilestone;
+window.markPractice = markPractice;
+window.addReflection = addReflection;
+window.editReflection = editReflection;
+window.deleteReflection = deleteReflection;
+window.exportChart = exportChart;
+
+// Start the app
 init();

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'momentum-app-v2';
+const CACHE_NAME = 'momentum-app-v3';
 const urlsToCache = [
     '/',
     '/index.html',
@@ -10,16 +10,23 @@ const urlsToCache = [
     'https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js',
     'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js',
     'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js',
-    'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2',
     'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css'
 ];
 
+// Only cache these if they exist
 self.addEventListener('install', event => {
     console.log('[Service Worker] Installing');
     event.waitUntil(
         caches.open(CACHE_NAME).then(cache => {
             console.log('[Service Worker] Caching app shell and content');
-            return cache.addAll(urlsToCache);
+            // Cache each file individually, don't fail if one fails
+            return Promise.allSettled(
+                urlsToCache.map(url => {
+                    return cache.add(url).catch(err => {
+                        console.warn(`[Service Worker] Failed to cache ${url}:`, err);
+                    });
+                })
+            );
         })
     );
     self.skipWaiting();
@@ -43,19 +50,26 @@ self.addEventListener('fetch', event => {
     event.respondWith(
         caches.match(event.request).then(response => {
             return response || fetch(event.request).then(fetchResponse => {
-                if (!fetchResponse || fetchResponse.status !== 200 || fetchResponse.type !== 'basic') {
-                    return fetchResponse;
+                // Only cache successful responses
+                if (fetchResponse && fetchResponse.status === 200 && fetchResponse.type === 'basic') {
+                    const responseToCache = fetchResponse.clone();
+                    caches.open(CACHE_NAME).then(cache => {
+                        cache.put(event.request, responseToCache).catch(err => {
+                            console.warn('[Service Worker] Failed to cache:', err);
+                        });
+                    });
                 }
-                const responseToCache = fetchResponse.clone();
-                caches.open(CACHE_NAME).then(cache => {
-                    cache.put(event.request, responseToCache);
-                });
                 return fetchResponse;
             });
         }).catch(() => {
+            // Only return index.html for navigation requests
             if (event.request.mode === 'navigate') {
                 return caches.match('/index.html');
             }
+            return new Response('Offline content not available', {
+                status: 404,
+                statusText: 'Not Found'
+            });
         })
     );
 });
