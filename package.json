@@ -4,5 +4,8 @@
     "@neondatabase/serverless": "^1.1.0",
     "@supabase/supabase-js": "^2.0.0",
     "dotenv": "^17.4.2"
+  },
+  "devDependencies": {
+    "nitron": "^1.2.0"
   }
 }

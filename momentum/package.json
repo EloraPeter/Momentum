@@ -1,0 +1,13 @@
+{
+  "name": "momentum",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "nitron dev",
+    "build": "nitron build"
+  },
+  "devDependencies": {
+    "nitron": "^1.2.0"
+  }
+}

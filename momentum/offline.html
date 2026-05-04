@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Momentum - Offline Mode</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-20px); }
+        }
+        .float-animation {
+            animation: float 3s ease-in-out infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.6; }
+        }
+        .pulse-animation {
+            animation: pulse 2s ease-in-out infinite;
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-blue-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
+    <div class="min-h-screen flex items-center justify-center p-4">
+        <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-8 max-w-md w-full text-center transform transition-all">
+            <div class="mb-6">
+                <div class="w-32 h-32 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center mx-auto float-animation">
+                    <svg class="w-16 h-16 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 14v3m4-3v3m4-3v3M3 21h18M3 10h18M3 7l9-4 9 4M4 10h16v11H4V10z"></path>
+                    </svg>
+                </div>
+            </div>
+            
+            <h1 class="text-3xl font-bold text-gray-900 dark:text-white mb-3">
+                You're Offline
+            </h1>
+            
+            <p class="text-gray-600 dark:text-gray-300 mb-6">
+                Don't worry! Momentum works offline. Your progress is being saved locally.
+            </p>
+            
+            <div class="space-y-3 mb-8">
+                <div class="bg-green-50 dark:bg-green-900/20 rounded-lg p-3 border border-green-200 dark:border-green-800">
+                    <p class="text-sm text-green-700 dark:text-green-300">
+                        ✅ All your skills and progress are saved
+                    </p>
+                </div>
+                <div class="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-3 border border-blue-200 dark:border-blue-800">
+                    <p class="text-sm text-blue-700 dark:text-blue-300">
+                        🔄 Will auto-sync when connection returns
+                    </p>
+                </div>
+                <div class="bg-yellow-50 dark:bg-yellow-900/20 rounded-lg p-3 border border-yellow-200 dark:border-yellow-800">
+                    <p class="text-sm text-yellow-700 dark:text-yellow-300">
+                        💾 Data is stored securely on your device
+                    </p>
+                </div>
+            </div>
+            
+            <div class="space-y-3">
+                <button onclick="retryConnection()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-3 rounded-lg transition-all transform hover:scale-105">
+                    Try Again
+                </button>
+                <button onclick="goBack()" class="w-full bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-800 dark:text-white font-semibold px-6 py-3 rounded-lg transition-all">
+                    Go Back
+                </button>
+            </div>
+            
+            <p class="text-xs text-gray-500 dark:text-gray-400 mt-6">
+                Momentum • Your personal growth companion
+            </p>
+        </div>
+    </div>
+    
+    <script>
+        function retryConnection() {
+            if (navigator.onLine) {
+                window.location.href = '/';
+            } else {
+                alert('Still offline. Please check your connection.');
+            }
+        }
+        
+        function goBack() {
+            if (document.referrer) {
+                window.location.href = document.referrer;
+            } else {
+                window.location.href = '/';
+            }
+        }
+        
+        // Listen for online event
+        window.addEventListener('online', () => {
+            setTimeout(() => {
+                window.location.href = '/';
+            }, 1000);
+        });
+        
+        // Show connection status
+        window.addEventListener('load', () => {
+            if (!navigator.onLine) {
+                console.log('App is offline - running in offline mode');
+            }
+        });
+    </script>
+</body>
+</html>

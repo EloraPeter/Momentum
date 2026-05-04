@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Momentum Icon Generator</title>
+    <style>
+        body { font-family: Arial; padding: 20px; max-width: 800px; margin: 0 auto; }
+        .preview { display: flex; gap: 20px; flex-wrap: wrap; margin-top: 20px; }
+        .preview-item { text-align: center; }
+        canvas { border: 1px solid #ddd; border-radius: 12px; }
+        button { background: #2563EB; color: white; padding: 10px 20px; border: none; border-radius: 8px; cursor: pointer; }
+        button:hover { background: #1e40af; }
+    </style>
+</head>
+<body>
+    <h1>Momentum Icon Generator</h1>
+    <p>Upload your base icon (512x512 minimum) to generate all required sizes</p>
+    
+    <input type="file" id="imageInput" accept="image/png,image/jpeg">
+    <button onclick="generateIcons()">Generate All Icons</button>
+    
+    <div id="preview" class="preview"></div>
+    
+    <script>
+        const sizes = [72, 96, 128, 144, 152, 167, 180, 192, 384, 512];
+        
+        function generateIcons() {
+            const file = document.getElementById('imageInput').files[0];
+            if (!file) return;
+            
+            const img = new Image();
+            img.onload = () => {
+                const preview = document.getElementById('preview');
+                preview.innerHTML = '';
+                
+                sizes.forEach(size => {
+                    const canvas = document.createElement('canvas');
+                    canvas.width = size;
+                    canvas.height = size;
+                    const ctx = canvas.getContext('2d');
+                    
+                    // Draw background
+                    ctx.fillStyle = '#2563EB';
+                    ctx.fillRect(0, 0, size, size);
+                    
+                    // Calculate image dimensions to fit
+                    const scale = Math.min(size / img.width, size / img.height) * 0.8;
+                    const x = (size - img.width * scale) / 2;
+                    const y = (size - img.height * scale) / 2;
+                    
+                    ctx.drawImage(img, x, y, img.width * scale, img.height * scale);
+                    
+                    // Create download link
+                    const div = document.createElement('div');
+                    div.className = 'preview-item';
+                    div.innerHTML = `
+                        <canvas width="${size}" height="${size}" style="width: 64px; height: 64px;"></canvas>
+                        <p>${size}x${size}</p>
+                        <a href="${canvas.toDataURL()}" download="icon-${size}x${size}.png">Download</a>
+                    `;
+                    div.querySelector('canvas').getContext('2d').drawImage(canvas, 0, 0, 64, 64);
+                    preview.appendChild(div);
+                });
+            };
+            img.src = URL.createObjectURL(file);
+        }
+    </script>
+</body>
+</html>
